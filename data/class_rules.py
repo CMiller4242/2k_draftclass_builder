@@ -81,70 +81,156 @@ CLASS_TYPE_NAMES = list(CLASS_TYPES.keys())
 # ---------------------------------------------------------------------------
 
 CLASS_FLAVORS = {
+    # -------------------------------------------------------------------------
+    # Balanced — all 18 archetypes get equal weight (no adjustments)
+    # -------------------------------------------------------------------------
     "Balanced": {
         "description": "Even mix of positions and archetypes.",
-        "archetype_weights": {},  # No adjustments — all equal
+        "archetype_weights": {},
     },
+
+    # -------------------------------------------------------------------------
+    # Guard-heavy — perimeter players dominate; bigs deprioritized
+    # Boosted: Movement Shooter, Iso Creator, Shot Hunter, Lockdown Guard,
+    #          3-Level Scorer, Defensive Connector
+    # Reduced: all interior bigs
+    # -------------------------------------------------------------------------
     "Guard-heavy": {
         "description": "Loaded with guards and perimeter players.",
         "archetype_weights": {
-            "Movement Shooter": 2.5,
-            "Iso Creator": 2.5,
+            "Movement Shooter":   2.5,
+            "Iso Creator":        2.5,
+            "Shot Hunter":        2.5,
+            "Lockdown Guard":     2.0,
+            "3-Level Scorer":     2.0,
             "Defensive Connector": 1.5,
-            "Rim Running Big": 0.5,
-            "Playmaking Big": 0.5,
-            "Stretch Big": 0.7,
+            "Mid-Range Specialist": 1.5,
+            # Bigs down
+            "Rim Running Big":    0.4,
+            "Playmaking Big":     0.4,
+            "Stretch Big":        0.6,
+            "Paint Bully":        0.3,
+            "Glass Cleaner":      0.3,
+            "Break Starter":      0.4,
+            "Putback Finisher":   0.3,
         },
     },
+
+    # -------------------------------------------------------------------------
+    # Wing-heavy — versatile wings and forwards in abundance
+    # Boosted: Two-Way Wing, Slashing Forward, 3-Level Scorer,
+    #          Mid-Range Specialist, Inside-Out Scorer, High Flyer
+    # Reduced: interior-only bigs, pure point guards
+    # -------------------------------------------------------------------------
     "Wing-heavy": {
         "description": "Depth of versatile wings across both forward spots.",
         "archetype_weights": {
-            "Two-Way Wing": 2.5,
-            "Slashing Forward": 2.5,
+            "Two-Way Wing":        2.5,
+            "Slashing Forward":    2.5,
+            "3-Level Scorer":      2.0,
+            "Mid-Range Specialist": 2.0,
+            "Inside-Out Scorer":   2.0,
+            "High Flyer":          2.0,
             "Defensive Connector": 2.0,
-            "Movement Shooter": 1.5,
-            "Rim Running Big": 0.4,
+            "Movement Shooter":    1.5,
+            # Bigs down
+            "Rim Running Big":     0.4,
+            "Paint Bully":         0.3,
+            "Glass Cleaner":       0.3,
+            "Break Starter":       0.3,
+            "Putback Finisher":    0.3,
         },
     },
+
+    # -------------------------------------------------------------------------
+    # Big-heavy — loaded at center and power forward
+    # Boosted: all big archetypes
+    # Reduced: perimeter guards
+    # -------------------------------------------------------------------------
     "Big-heavy": {
         "description": "Deep at center and power forward.",
         "archetype_weights": {
-            "Rim Running Big": 2.5,
-            "Playmaking Big": 2.5,
-            "Stretch Big": 2.0,
-            "Iso Creator": 0.5,
-            "Movement Shooter": 0.6,
+            "Rim Running Big":   2.5,
+            "Playmaking Big":    2.5,
+            "Stretch Big":       2.0,
+            "Paint Bully":       2.5,
+            "Glass Cleaner":     2.5,
+            "Break Starter":     2.0,
+            "Putback Finisher":  2.0,
+            # Perimeter guards down
+            "Iso Creator":       0.5,
+            "Movement Shooter":  0.5,
+            "Shot Hunter":       0.4,
+            "Lockdown Guard":    0.5,
+            "3-Level Scorer":    0.6,
         },
     },
+
+    # -------------------------------------------------------------------------
+    # Defensive-heavy — defense comes first across every position
+    # Boosted: Two-Way Wing, Defensive Connector, Lockdown Guard,
+    #          Rim Running Big, Glass Cleaner
+    # Reduced: volume scorers, shot creators
+    # -------------------------------------------------------------------------
     "Defensive-heavy": {
         "description": "Defense-first prospects throughout.",
         "archetype_weights": {
-            "Two-Way Wing": 2.5,
+            "Two-Way Wing":      2.5,
             "Defensive Connector": 3.0,
-            "Rim Running Big": 2.0,
-            "Movement Shooter": 0.5,
-            "Iso Creator": 0.6,
+            "Lockdown Guard":    3.0,
+            "Rim Running Big":   2.0,
+            "Glass Cleaner":     2.0,
+            # Offensive specialists down
+            "Movement Shooter":  0.5,
+            "Iso Creator":       0.5,
+            "Shot Hunter":       0.4,
+            "Mid-Range Specialist": 0.6,
+            "3-Level Scorer":    0.6,
+            "Paint Bully":       0.8,
         },
     },
+
+    # -------------------------------------------------------------------------
+    # Shooting-heavy — shooters at every position, stretch bigs prevalent
+    # Boosted: Movement Shooter, Shot Hunter, Stretch Big, 3-Level Scorer,
+    #          Mid-Range Specialist
+    # Reduced: non-shooting bigs, pure defenders
+    # -------------------------------------------------------------------------
     "Shooting-heavy": {
         "description": "Shooters everywhere — stretch bigs, spot-up wings, volume guards.",
         "archetype_weights": {
-            "Movement Shooter": 3.0,
-            "Stretch Big": 2.5,
-            "Iso Creator": 1.5,
-            "Rim Running Big": 0.4,
-            "Defensive Connector": 0.6,
+            "Movement Shooter":    3.0,
+            "Shot Hunter":         2.5,
+            "Stretch Big":         2.5,
+            "3-Level Scorer":      2.0,
+            "Mid-Range Specialist": 1.5,
+            "Iso Creator":         1.5,
+            "Inside-Out Scorer":   1.5,
+            # Non-shooting bigs / defenders down
+            "Rim Running Big":     0.4,
+            "Paint Bully":         0.4,
+            "Glass Cleaner":       0.4,
+            "Defensive Connector": 0.5,
+            "Lockdown Guard":      0.5,
         },
     },
+
+    # -------------------------------------------------------------------------
+    # High variance — boom-or-bust; archetype mix stays even but busts spike
+    # -------------------------------------------------------------------------
     "High variance": {
         "description": "Boom-or-bust prospects — polarized talent distribution.",
-        "archetype_weights": {},  # Distribution handled via bust risk, not archetypes
-        "extra_bust_weight": 0.25,  # Adds 25% more bust probability on top of tier base
+        "archetype_weights": {},
+        "extra_bust_weight": 0.25,
     },
+
+    # -------------------------------------------------------------------------
+    # Low variance — safe, floor-heavy prospects; bust probability suppressed
+    # -------------------------------------------------------------------------
     "Low variance": {
         "description": "Safe, polished players — lower upside but fewer busts.",
         "archetype_weights": {},
-        "extra_bust_weight": -0.20,  # Reduces bust probability
+        "extra_bust_weight": -0.20,
     },
 }
 

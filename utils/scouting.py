@@ -128,42 +128,74 @@ def generate_2k_entry_notes(player: dict) -> str:
 def _build_strength_line(archetype: str, attrs: dict, tier: int) -> str:
     """Build a sentence describing the player's primary strengths."""
     strength_phrases = {
-        "Movement Shooter": "His elite shooting mechanics and off-ball movement make him a constant threat.",
-        "Iso Creator": "His ball-handling and pull-up game allow him to create shots for himself and others.",
-        "Two-Way Wing": "He brings elite defensive versatility while providing enough offense to demand respect.",
-        "Rim Running Big": "He dominates above the rim as a lob threat and interior force.",
-        "Playmaking Big": "His vision and passing ability at the center position is genuinely rare.",
-        "Slashing Forward": "His explosiveness and finishing ability in traffic set him apart.",
+        # Original 8
+        "Movement Shooter":   "His elite shooting mechanics and off-ball movement make him a constant threat.",
+        "Iso Creator":        "His ball-handling and pull-up game allow him to create shots for himself and others.",
+        "Two-Way Wing":       "He brings elite defensive versatility while providing enough offense to demand respect.",
+        "Rim Running Big":    "He dominates above the rim as a lob threat and interior force.",
+        "Playmaking Big":     "His vision and passing ability at the center position is genuinely rare.",
+        "Slashing Forward":   "His explosiveness and finishing ability in traffic set him apart.",
         "Defensive Connector": "His defensive IQ and communication make every team better.",
-        "Stretch Big": "His combination of size and shooting range is a matchup nightmare for opposing bigs.",
+        "Stretch Big":        "His combination of size and shooting range is a matchup nightmare for opposing bigs.",
+        # New 10
+        "3-Level Scorer":        "He can hurt defenses at all three levels, making him impossible to consistently contain.",
+        "Shot Hunter":           "His ability to create and drain pull-up jumpers off the dribble is elite.",
+        "Mid-Range Specialist":  "The mid-range is his office — he commands the 15-to-20-foot area better than anyone.",
+        "High Flyer":            "His above-the-rim athleticism is a legitimate weapon that changes how opponents defend.",
+        "Glass Cleaner":         "He dominates the glass on both ends — second-chance points are his specialty.",
+        "Paint Bully":           "His strength and physicality in the post make him nearly impossible to front or move.",
+        "Break Starter":         "His outlet passing and vision from the high post triggers some of the best fast breaks in the class.",
+        "Lockdown Guard":        "His on-ball defense and anticipation are elite — he makes opposing guards miserable.",
+        "Putback Finisher":      "He crashes relentlessly and converts around the rim with outstanding timing and athleticism.",
+        "Inside-Out Scorer":     "His combination of rim pressure and three-point range keeps defenses completely off-balance.",
     }
     return strength_phrases.get(archetype, "He brings a unique skill set to the court.")
 
 
 def _random_strength(archetype: str) -> str:
     strength_map = {
-        "Movement Shooter": "shooting mechanics",
-        "Iso Creator": "creation ability",
-        "Two-Way Wing": "defensive versatility",
-        "Rim Running Big": "athleticism and rim pressure",
-        "Playmaking Big": "vision and passing",
-        "Slashing Forward": "explosiveness",
+        "Movement Shooter":   "shooting mechanics",
+        "Iso Creator":        "creation ability",
+        "Two-Way Wing":       "defensive versatility",
+        "Rim Running Big":    "athleticism and rim pressure",
+        "Playmaking Big":     "vision and passing",
+        "Slashing Forward":   "explosiveness",
         "Defensive Connector": "defensive IQ",
-        "Stretch Big": "floor-spacing ability",
+        "Stretch Big":        "floor-spacing ability",
+        "3-Level Scorer":     "multi-level scoring threat",
+        "Shot Hunter":        "pull-up shot creation",
+        "Mid-Range Specialist": "mid-range mastery",
+        "High Flyer":         "above-the-rim athleticism",
+        "Glass Cleaner":      "rebounding dominance",
+        "Paint Bully":        "physical interior presence",
+        "Break Starter":      "transition-triggering passing",
+        "Lockdown Guard":     "on-ball defensive intensity",
+        "Putback Finisher":   "offensive rebounding and putback ability",
+        "Inside-Out Scorer":  "inside-out scoring versatility",
     }
     return strength_map.get(archetype, "basketball IQ")
 
 
 def _random_concern(archetype: str) -> str:
     concern_map = {
-        "Movement Shooter": "shot selection",
-        "Iso Creator": "decision-making",
-        "Two-Way Wing": "offensive consistency",
-        "Rim Running Big": "free throw shooting",
-        "Playmaking Big": "defensive effort",
-        "Slashing Forward": "outside shooting",
+        "Movement Shooter":   "shot selection",
+        "Iso Creator":        "decision-making",
+        "Two-Way Wing":       "offensive consistency",
+        "Rim Running Big":    "free throw shooting",
+        "Playmaking Big":     "defensive effort",
+        "Slashing Forward":   "outside shooting",
         "Defensive Connector": "offensive impact",
-        "Stretch Big": "lateral mobility",
+        "Stretch Big":        "lateral mobility",
+        "3-Level Scorer":     "consistency across all three zones",
+        "Shot Hunter":        "shot volume and selectivity",
+        "Mid-Range Specialist": "range limitations against drop coverage",
+        "High Flyer":         "half-court offensive IQ",
+        "Glass Cleaner":      "free throw shooting",
+        "Paint Bully":        "mobility against modern switching defenses",
+        "Break Starter":      "half-court offensive impact",
+        "Lockdown Guard":     "offensive creation",
+        "Putback Finisher":   "positional versatility",
+        "Inside-Out Scorer":  "shot consistency from both zones",
     }
     return concern_map.get(archetype, "consistency")
 
