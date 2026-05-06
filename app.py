@@ -94,7 +94,7 @@ from components.player_cards import (
 from components.tables import (
     render_class_summary_table, render_tier_breakdown_chart,
     render_archetype_distribution, render_position_distribution,
-    render_diversity_stats,
+    render_diversity_stats, render_sleeper_summary,
 )
 from components.filters import render_class_filters
 from components.build_mapper_ui import render_build_mapper_section
@@ -491,6 +491,10 @@ with tab_review:
         # Archetype diversity
         st.markdown("**Archetype Diversity**")
         render_diversity_stats(summary)
+
+        # Sleeper prospects
+        st.markdown("**Sleeper Prospects**")
+        render_sleeper_summary(summary)
 
         # Distribution charts
         chart_col1, chart_col2 = st.columns(2)

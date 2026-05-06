@@ -16,6 +16,7 @@ from data.archetypes import ARCHETYPES
 from data.class_rules import CLASS_FLAVORS
 from utils.scaling import scale_tier_distribution
 from utils.generate_player import generate_player
+from utils.sleeper import sleeper_pass
 
 
 def generate_draft_class(
@@ -70,6 +71,9 @@ def generate_draft_class(
             build_name=build_name,
         )
         players.append(player)
+
+    # Assign sleeper subtypes (requires full class context for probability gating)
+    sleeper_pass(players, class_type, class_flavor, player_count)
 
     return players
 
@@ -254,7 +258,7 @@ def _pick_build_name(
 def get_class_summary(players: list) -> dict:
     """
     Compute summary statistics for a generated draft class.
-    Includes archetype diversity metrics for display in the Class Review tab.
+    Includes archetype diversity metrics and sleeper breakdown.
     """
     from collections import Counter
 
@@ -266,25 +270,37 @@ def get_class_summary(players: list) -> dict:
     total = len(players)
     unique_archetypes  = len(archetype_counts)
     most_repeated_arch = archetype_counts.most_common(1)[0] if archetype_counts else ("—", 0)
-    # Diversity score: ratio of unique archetypes to total players (0–1, capped at 1)
     diversity_score = round(min(1.0, unique_archetypes / total), 3) if total else 0.0
 
+    # Sleeper breakdown
+    sleeper_subtypes = [
+        "role_sleeper", "starter_sleeper", "star_sleeper", "legendary_sleeper"
+    ]
+    sleeper_counts = {
+        st: sum(1 for p in players if p.get("sleeper_subtype") == st)
+        for st in sleeper_subtypes
+    }
+    legendary_sleepers = [p for p in players if p.get("sleeper_subtype") == "legendary_sleeper"]
+
     return {
-        "total_players":         total,
-        "tier_breakdown":        dict(tier_counts),
-        "archetype_distribution": dict(archetype_counts),
-        "position_distribution": dict(position_counts),
-        "bust_count":            bust_count,
-        "bust_percentage":       round(bust_count / total * 100, 1) if total else 0,
+        "total_players":           total,
+        "tier_breakdown":          dict(tier_counts),
+        "archetype_distribution":  dict(archetype_counts),
+        "position_distribution":   dict(position_counts),
+        "bust_count":              bust_count,
+        "bust_percentage":         round(bust_count / total * 100, 1) if total else 0,
         "avg_potential": (
             round(sum(p["attributes"]["Potential"] for p in players) / total, 1)
             if total else 0
         ),
         # Diversity metrics
-        "unique_archetypes":     unique_archetypes,
+        "unique_archetypes":       unique_archetypes,
         "most_repeated_archetype": most_repeated_arch[0],
-        "most_repeated_count":   most_repeated_arch[1],
-        "diversity_score":       diversity_score,
+        "most_repeated_count":     most_repeated_arch[1],
+        "diversity_score":         diversity_score,
+        # Sleeper metrics
+        "sleeper_counts":          sleeper_counts,
+        "legendary_sleepers":      legendary_sleepers,
         # Used by dashboard / export
         "top_picks": [p for p in players if p["tier"] <= 2],
     }

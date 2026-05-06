@@ -102,6 +102,7 @@ def generate_player(
         "tier": tier,
         "tier_label": _tier_label(tier),
         "is_bust": is_bust,
+        "sleeper_subtype": None,    # filled by sleeper_pass in generate_class
         "projected_role": projected_role,
         "development_outlook": "",  # filled by assign_player_outlook below
         "bust_risk": "",            # filled by assign_player_outlook below

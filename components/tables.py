@@ -117,3 +117,32 @@ def render_position_distribution(summary: dict):
     ).sort_values("Count", ascending=False)
 
     st.bar_chart(df.set_index("Position"))
+
+
+def render_sleeper_summary(summary: dict):
+    """Display sleeper prospect breakdown and legendary sleeper callouts."""
+    counts    = summary.get("sleeper_counts", {})
+    legendary = summary.get("legendary_sleepers", [])
+
+    _LABELS = {
+        "role_sleeper":      ("🔵 Role Sleepers",      "Solid depth finds"),
+        "starter_sleeper":   ("🟡 Starter Sleepers",   "Hidden starter upside"),
+        "star_sleeper":      ("🟠 Star Sleepers",       "Rare hidden all-star talent"),
+        "legendary_sleeper": ("🌟 Legendary Sleepers",  "Franchise-level hidden gems"),
+    }
+
+    cols = st.columns(4)
+    for i, (subtype, (label, help_text)) in enumerate(_LABELS.items()):
+        with cols[i]:
+            st.metric(label, counts.get(subtype, 0), help=help_text)
+
+    if legendary:
+        st.markdown("#### 🌟 Legendary Sleeper Prospects")
+        for p in legendary:
+            pot  = p["attributes"].get("Potential", "?")
+            out  = p.get("development_outlook", "")
+            st.markdown(
+                f"**#{p['pick_number']} {p['name']}** — "
+                f"{p['position']} | {p['height_display']} | {p['archetype']} | "
+                f"Potential **{pot}** | _{out}_"
+            )
