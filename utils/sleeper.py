@@ -2,16 +2,17 @@
 Sleeper prospect assignment and legendary profile enhancement.
 
 Sleeper subtypes (mutually exclusive, per eligible player):
-  legendary_sleeper  — extremely rare hidden franchise talent (~0.2% base)
-  star_sleeper       — rare hidden all-star talent (~1.5% base)
-  starter_sleeper    — uncommon hidden starter talent (~6% base)
-  role_sleeper       — common hidden solid-rotation player (~18% base)
+  legendary_sleeper  — extremely rare hidden franchise talent (~0.2% per eligible)
+  star_sleeper       — rare hidden all-star talent
+  starter_sleeper    — uncommon hidden starter talent
+  role_sleeper       — common hidden solid-rotation player
   None               — no sleeper designation
 
 Eligibility: Tier 3 or Tier 4, is_bust=False.
 
-Class-level context (class_type, class_flavor, player_count) modulates
-the legendary probability only; the other tiers use a flat flavor multiplier.
+Non-legendary sleepers use COUNT-BASED scaling (guaranteed target range per
+class size). Legendary sleepers remain probabilistic (~0.2% per eligible
+player) and are assigned from the remaining pool after count-based sleepers.
 """
 
 import random
@@ -33,17 +34,26 @@ LEGENDARY_OUTLOOKS = [
 ]
 
 # ---------------------------------------------------------------------------
-# BASE PROBABILITIES (per eligible player)
+# COUNT-BASED TARGET RANGES (non-legendary sleepers)
+# (player_count_lo, player_count_hi, target_min, target_max)
 # ---------------------------------------------------------------------------
 
-_BASE_PROBS = {
-    "legendary_sleeper": 0.002,   # ~0.2%
-    "star_sleeper":      0.015,   # ~1.5%
-    "starter_sleeper":   0.060,   # ~6.0%
-    "role_sleeper":      0.180,   # ~18.0%
+_COUNT_TARGETS = [
+    (1,  14,  0, 0),
+    (15, 24,  1, 1),
+    (25, 39,  1, 2),
+    (40, 54,  2, 4),
+    (55, 60,  3, 5),
+]
+
+# Non-legendary subtype weights: role (common) → star (rare)
+_NON_LEGENDARY_WEIGHTS = {
+    "role_sleeper":    60,
+    "starter_sleeper": 28,
+    "star_sleeper":    12,
 }
 
-# Legendary modifier by class type
+# Legendary modifier by class type (probabilistic, applied to remaining pool)
 _CLASS_TYPE_LEGENDARY_MULT = {
     "Generational":           1.5,
     "Strong":                 1.4,
@@ -54,11 +64,7 @@ _CLASS_TYPE_LEGENDARY_MULT = {
     "Deep role-player class": 1.2,
 }
 
-# All-sleeper multiplier by class flavor
-_FLAVOR_MULT = {
-    "High variance": 1.5,
-    "Low variance":  0.6,
-}
+_BASE_LEGENDARY_PROB = 0.002   # ~0.2% per eligible player
 
 # Badge level upgrade path
 _BADGE_UPGRADE = {"Bronze": "Silver", "Silver": "Gold"}
@@ -68,53 +74,33 @@ _BADGE_UPGRADE = {"Bronze": "Silver", "Silver": "Gold"}
 # PUBLIC API
 # ---------------------------------------------------------------------------
 
-def compute_sleeper_probs(
-    class_type: str,
-    class_flavor: str,
-    player_count: int,
-) -> dict:
-    """
-    Return per-eligible-player probabilities for this class context.
+def _target_sleeper_count(player_count: int, class_flavor: str) -> int:
+    """Determine how many non-legendary sleepers this class should have."""
+    mn, mx = 0, 0
+    for lo, hi, t_min, t_max in _COUNT_TARGETS:
+        if lo <= player_count <= hi:
+            mn, mx = t_min, t_max
+            break
 
-    Legendary probability is gated by player_count unless High Variance is
-    active; other tiers receive a flat flavor multiplier.
-    """
-    is_high_variance = (class_flavor == "High variance")
-    type_mult   = _CLASS_TYPE_LEGENDARY_MULT.get(class_type, 1.0)
-    flavor_mult = _FLAVOR_MULT.get(class_flavor, 1.0)
+    count = random.randint(mn, mx)
+    if class_flavor == "High variance":
+        count = min(mx + 1, count + random.randint(0, 1))
+    elif class_flavor == "Low variance":
+        count = max(0, count - 1)
+    return count
+
+
+def _legendary_prob(class_type: str, class_flavor: str, player_count: int) -> float:
+    """Per-eligible-player legendary probability for this class context."""
+    type_mult = _CLASS_TYPE_LEGENDARY_MULT.get(class_type, 1.0)
+    is_hv     = (class_flavor == "High variance")
 
     if player_count < 40:
-        count_mult = 0.15 if is_high_variance else 0.0
+        count_mult = 0.15 if is_hv else 0.0
     else:
-        count_mult = 1.0
+        count_mult = 1.5 if is_hv else 1.0
 
-    legendary_prob = (
-        _BASE_PROBS["legendary_sleeper"]
-        * type_mult
-        * flavor_mult
-        * count_mult
-    )
-
-    return {
-        "legendary_sleeper": legendary_prob,
-        "star_sleeper":      _BASE_PROBS["star_sleeper"]    * flavor_mult,
-        "starter_sleeper":   _BASE_PROBS["starter_sleeper"] * flavor_mult,
-        "role_sleeper":      _BASE_PROBS["role_sleeper"]    * flavor_mult,
-    }
-
-
-def assign_sleeper_subtype(probs: dict) -> Optional[str]:
-    """
-    Single roll against cumulative thresholds — highest-tier hit wins.
-    Returns the subtype string or None.
-    """
-    roll = random.random()
-    threshold = 0.0
-    for subtype in ("legendary_sleeper", "star_sleeper", "starter_sleeper", "role_sleeper"):
-        threshold += probs[subtype]
-        if roll < threshold:
-            return subtype
-    return None
+    return _BASE_LEGENDARY_PROB * type_mult * count_mult
 
 
 def sleeper_pass(
@@ -125,26 +111,45 @@ def sleeper_pass(
 ) -> None:
     """
     Assign sleeper subtypes in-place across all players.
-    Only Tier 3/4 non-bust players are eligible.
-    Legendary sleepers also receive an enhanced hidden profile.
+
+    Stage 1 — Count-based: pick a target number of non-legendary sleepers,
+    randomly select eligible players, assign subtypes (role/starter/star).
+
+    Stage 2 — Probabilistic: from REMAINING eligible players, each rolls
+    independently for legendary_sleeper at ~0.2% base.
+
+    Eligibility: Tier 3 or Tier 4, is_bust=False.
     """
-    probs = compute_sleeper_probs(class_type, class_flavor, player_count)
+    eligible = [p for p in players if p["tier"] in (3, 4) and not p["is_bust"]]
 
-    for player in players:
-        if player["tier"] not in (3, 4) or player["is_bust"]:
-            player["sleeper_subtype"] = None
-            continue
+    # Stage 1: count-based non-legendary sleepers
+    target = _target_sleeper_count(player_count, class_flavor)
+    chosen = random.sample(eligible, min(target, len(eligible)))
 
-        subtype = assign_sleeper_subtype(probs)
-        player["sleeper_subtype"] = subtype
+    subtypes      = list(_NON_LEGENDARY_WEIGHTS.keys())
+    subtype_wts   = list(_NON_LEGENDARY_WEIGHTS.values())
 
-        if subtype == "legendary_sleeper":
-            _apply_legendary_profile(player)
-        elif subtype == "star_sleeper":
-            _apply_star_profile(player)
+    for p in chosen:
+        subtype = random.choices(subtypes, weights=subtype_wts, k=1)[0]
+        p["sleeper_subtype"] = subtype
+        if subtype == "star_sleeper":
+            _apply_star_profile(p)
         elif subtype == "starter_sleeper":
-            _apply_starter_profile(player)
-        # role_sleeper: label only, no stat change
+            _apply_starter_profile(p)
+
+    # Stage 2: legendary check on remaining eligible pool
+    leg_prob    = _legendary_prob(class_type, class_flavor, player_count)
+    chosen_set  = set(id(p) for p in chosen)
+    remaining   = [p for p in eligible if id(p) not in chosen_set]
+
+    for p in remaining:
+        if random.random() < leg_prob:
+            p["sleeper_subtype"] = "legendary_sleeper"
+            _apply_legendary_profile(p)
+
+    # Ensure every player has the field set
+    for p in players:
+        p.setdefault("sleeper_subtype", None)
 
 
 # ---------------------------------------------------------------------------

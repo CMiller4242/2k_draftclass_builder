@@ -1,22 +1,35 @@
 """
 Draft class generation orchestrator.
 
-generate_draft_class() ties together:
-- Tier distribution (scaling.py)
-- Archetype selection (select_archetypes_for_class)
-- Player generation (generate_player.py)
+Pipeline stages:
+  1. scale_tier_distribution()       → tier counts WITH hard caps
+  2. select_archetypes_for_class()   → archetype sequence WITH spacing
+  3. _build_assignments()            → sorted (tier, arch) pairs
+  4. enforce_top_pick_diversity()    → positional variety in top 5
+  5. assign_outcome_tags()           → pre-determine bust/quality outcomes
+  6. generate_player() × N          → full player profiles
+  7. enforce_height_distribution()   → cap extreme heights
+  8. sleeper_pass()                  → count-based sleeper assignment
+  9. validate_class()                → collect realism warnings
 
-Returns a list of player dicts ordered by pick (best → worst).
+Returns (players, warnings) — a list of player dicts and a list of strings.
 """
 
 import random
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from data.archetypes import ARCHETYPES
 from data.class_rules import CLASS_FLAVORS
 from utils.scaling import scale_tier_distribution
 from utils.generate_player import generate_player
 from utils.sleeper import sleeper_pass
+from utils.outcome_tags import assign_outcome_tags
+from utils.realism import (
+    enforce_top_pick_diversity,
+    enforce_height_distribution,
+    enforce_archetype_spacing,
+    validate_class,
+)
 
 
 def generate_draft_class(
@@ -24,7 +37,7 @@ def generate_draft_class(
     player_count: int,
     class_flavor: str = "Balanced",
     seed: Optional[int] = None,
-) -> list:
+) -> Tuple[list, List[str]]:
     """
     Generate a complete draft class.
 
@@ -35,47 +48,63 @@ def generate_draft_class(
         seed:         Optional random seed for reproducibility
 
     Returns:
-        List of player dicts, ordered by pick (best → worst).
+        (players, warnings) — ordered list of player dicts + realism warnings.
     """
     if seed is not None:
         random.seed(seed)
 
     player_count = max(1, min(60, player_count))
 
+    # Stage 1: Tier distribution (caps enforced inside scale_tier_distribution)
     tier_counts = scale_tier_distribution(class_type, player_count)
 
     archetype_weights = _build_archetype_weights(class_flavor)
 
-    flavor_rules = CLASS_FLAVORS.get(class_flavor, {})
-    bust_modifier = flavor_rules.get("extra_bust_weight", 0.0)
-
-    # Select all archetype assignments up front so High Variance can see the
-    # full picture and ensure spread across picks.
+    # Stage 2: Archetype selection
     archetype_sequence = select_archetypes_for_class(
         player_count, class_flavor, archetype_weights
     )
 
-    # Build build-name lookup (optional; only loaded when mapper + file exist)
-    build_name_pool = _load_build_name_pool()
-
+    # Stage 3: Build sorted (tier, arch) assignment list
     assignments = _build_assignments(tier_counts, archetype_sequence)
 
+    # Stage 4: Top-pick positional diversity (pre-generation reorder)
+    assignments = enforce_top_pick_diversity(assignments, class_flavor)
+
+    # Stage 5: Pre-assign outcome tags (bust, guaranteed_good, etc.)
+    outcome_tags = assign_outcome_tags(assignments, class_type, class_flavor)
+
+    # Build build-name lookup (optional)
+    build_name_pool = _load_build_name_pool()
+
+    # Stage 6: Generate player profiles
     players = []
-    for pick_num, (tier, archetype_name) in enumerate(assignments, start=1):
+    for pick_num, ((tier, archetype_name), outcome_tag) in enumerate(
+        zip(assignments, outcome_tags), start=1
+    ):
         build_name = _pick_build_name(archetype_name, build_name_pool, class_flavor)
         player = generate_player(
             tier=tier,
             archetype_name=archetype_name,
-            bust_modifier=bust_modifier,
             player_number=pick_num,
             build_name=build_name,
+            outcome_tag=outcome_tag,
         )
         players.append(player)
 
-    # Assign sleeper subtypes (requires full class context for probability gating)
+    # Stage 7: Height distribution enforcement
+    enforce_height_distribution(players, player_count, class_flavor)
+
+    # Stage 8: Sleeper assignment (count-based + legendary probabilistic)
     sleeper_pass(players, class_type, class_flavor, player_count)
 
-    return players
+    # Post-sleeper: enforce archetype spacing in top 15
+    enforce_archetype_spacing(players)
+
+    # Stage 9: Validate class for realism warnings
+    warnings = validate_class(players, class_type, player_count, class_flavor)
+
+    return players, warnings
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +284,7 @@ def _pick_build_name(
 # CLASS SUMMARY
 # ---------------------------------------------------------------------------
 
-def get_class_summary(players: list) -> dict:
+def get_class_summary(players: list, warnings: Optional[List[str]] = None) -> dict:
     """
     Compute summary statistics for a generated draft class.
     Includes archetype diversity metrics and sleeper breakdown.
@@ -301,6 +330,14 @@ def get_class_summary(players: list) -> dict:
         # Sleeper metrics
         "sleeper_counts":          sleeper_counts,
         "legendary_sleepers":      legendary_sleepers,
+        # Outcome tag breakdown
+        "outcome_tag_counts": {
+            tag: sum(1 for p in players if p.get("outcome_tag") == tag)
+            for tag in ("guaranteed_good", "normal", "bust_risk",
+                        "true_bust", "limited_role_player")
+        },
+        # Realism warnings (pass-through from generation)
+        "validation_warnings":     warnings or [],
         # Used by dashboard / export
         "top_picks": [p for p in players if p["tier"] <= 2],
     }

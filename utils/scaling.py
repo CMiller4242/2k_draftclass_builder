@@ -14,7 +14,7 @@ Key design decisions:
 
 import random
 import math
-from data.class_rules import CLASS_TYPES
+from data.class_rules import CLASS_TYPES, TIER1_CAPS
 
 
 def scale_tier_distribution(class_type: str, player_count: int) -> dict:
@@ -39,7 +39,21 @@ def scale_tier_distribution(class_type: str, player_count: int) -> dict:
     if player_count <= 5:
         return _small_class_distribution(class_type, player_count)
 
-    return _full_distribution(dist, player_count, guaranteed_t1, star_floor)
+    return _full_distribution(dist, player_count, guaranteed_t1, star_floor, class_type)
+
+
+def get_tier1_cap(class_type: str, player_count: int) -> int:
+    """Return the maximum allowed Tier 1 players for this class context."""
+    caps = TIER1_CAPS.get(class_type, (1, 2))
+    return caps[0] if player_count <= 30 else caps[1]
+
+
+def _apply_tier_caps(tiers: dict, class_type: str, player_count: int) -> None:
+    """Demote excess Tier 1 players to Tier 2 until the hard cap is met."""
+    cap = get_tier1_cap(class_type, player_count)
+    while tiers[1] > cap:
+        tiers[1] -= 1
+        tiers[2] += 1
 
 
 def _single_player_distribution(class_type: str) -> dict:
@@ -59,7 +73,9 @@ def _single_player_distribution(class_type: str) -> dict:
     }
     weights = weights_by_type.get(class_type, [10, 20, 40, 30])
     tier = random.choices([1, 2, 3, 4], weights=weights, k=1)[0]
-    return {1: int(tier == 1), 2: int(tier == 2), 3: int(tier == 3), 4: int(tier == 4)}
+    result = {1: int(tier == 1), 2: int(tier == 2), 3: int(tier == 3), 4: int(tier == 4)}
+    _apply_tier_caps(result, class_type, 1)
+    return result
 
 
 def _small_class_distribution(class_type: str, player_count: int) -> dict:
@@ -81,11 +97,13 @@ def _small_class_distribution(class_type: str, player_count: int) -> dict:
     for _ in range(player_count):
         tier = random.choices([1, 2, 3, 4], weights=weights, k=1)[0]
         counts[tier] += 1
+    _apply_tier_caps(counts, class_type, player_count)
     return counts
 
 
 def _full_distribution(dist: list, player_count: int,
-                       guaranteed_t1: int, star_floor: int) -> dict:
+                       guaranteed_t1: int, star_floor: int,
+                       class_type: str = "Average") -> dict:
     """
     For 6+ players, use fractional distribution with randomness.
     Adds ±variance to each fractional target before rounding.
@@ -116,8 +134,9 @@ def _full_distribution(dist: list, player_count: int,
 
     tiers = {1: counts[0], 2: counts[1], 3: counts[2], 4: counts[3]}
 
-    # Enforce guaranteed minimums
+    # Enforce guaranteed minimums first, then hard caps (caps win over minimums)
     _enforce_guaranteed(tiers, guaranteed_t1, star_floor, player_count)
+    _apply_tier_caps(tiers, class_type, player_count)
 
     return tiers
 

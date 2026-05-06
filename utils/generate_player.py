@@ -37,6 +37,7 @@ def generate_player(
     bust_modifier: float = 0.0,
     player_number: int = 0,
     build_name: str = "",
+    outcome_tag: str = "normal",
 ) -> dict:
     """
     Generate a complete 2K player profile.
@@ -44,9 +45,10 @@ def generate_player(
     Args:
         tier:           1–4 (Superstar → Role Player/Bust)
         archetype_name: Key from ARCHETYPES dict
-        bust_modifier:  Additional bust probability (from class flavor)
+        bust_modifier:  Kept for backwards compat; ignored when outcome_tag is set
         player_number:  Draft pick number (for ordering)
         build_name:     Optional 2K Labs build alias (used in CSV / display)
+        outcome_tag:    Pre-assigned outcome from outcome_tags.py
 
     Returns:
         Full player dict ready for display/export.
@@ -54,9 +56,15 @@ def generate_player(
     archetype = ARCHETYPES[archetype_name]
     tier_mod = TIER_ATTRIBUTE_MODIFIERS[tier]
 
-    # Determine if this player is a bust
-    base_bust_prob = BUST_RISK_BY_TIER[tier]
-    is_bust = random.random() < (base_bust_prob + bust_modifier)
+    # Bust determination driven by outcome_tag when provided
+    if outcome_tag == "true_bust":
+        is_bust = True
+    elif outcome_tag in ("guaranteed_good", "bust_risk", "limited_role_player", "normal"):
+        is_bust = False
+    else:
+        # Fallback for callers that skip outcome_tag
+        base_bust_prob = BUST_RISK_BY_TIER[tier]
+        is_bust = random.random() < (base_bust_prob + bust_modifier)
 
     # Physical attributes
     height_in = random.randint(*archetype["height_range_inches"])
@@ -74,8 +82,8 @@ def generate_player(
     # Generate attributes
     attributes = _generate_attributes(archetype, tier_mod, is_bust)
 
-    # Potential: ceiling attribute, may be higher than current if young prospect
-    potential = _generate_potential(attributes, tier, is_bust)
+    # Potential: ceiling attribute, influenced by outcome tag for volatility
+    potential = _generate_potential(tier, is_bust, outcome_tag)
     attributes["Potential"] = potential
 
     # Generate tendencies
@@ -102,6 +110,7 @@ def generate_player(
         "tier": tier,
         "tier_label": _tier_label(tier),
         "is_bust": is_bust,
+        "outcome_tag": outcome_tag,
         "sleeper_subtype": None,    # filled by sleeper_pass in generate_class
         "projected_role": projected_role,
         "development_outlook": "",  # filled by assign_player_outlook below
@@ -178,24 +187,32 @@ def _default_baseline(attr: str) -> tuple:
 # POTENTIAL
 # ---------------------------------------------------------------------------
 
-def _generate_potential(attributes: dict, tier: int, is_bust: bool) -> int:
+def _generate_potential(tier: int, is_bust: bool, outcome_tag: str = "normal") -> int:
     """
     Potential represents the ceiling — it's NOT current ability.
-    Busts often have high potential but fail to reach it.
+
+    Ranges overlap slightly between tiers to allow natural variance:
+      Tier 1: 88–98  |  Tier 2: 80–90  |  Tier 3: 72–84  |  Tier 4: 55–75
+    Outcome tag modifiers add further volatility so classes feel uneven.
     """
-    potential_ranges = {
-        1: (88, 99),
-        2: (80, 92),
-        3: (70, 82),
-        4: (55, 73),
-    }
-    base = rand_in_range(potential_ranges[tier])
+    base_ranges = {1: (88, 98), 2: (80, 90), 3: (72, 84), 4: (55, 75)}
+    base = rand_in_range(base_ranges[tier])
 
-    # Busts: high potential, low realization (that's what makes them busts)
-    if is_bust and tier in (1, 2):
-        base = clamp(base + random.randint(3, 8))  # Paper prospect
+    # Paper prospects: high ceiling scouts love, real-world outcome disappoints
+    if outcome_tag in ("true_bust", "bust_risk") and tier <= 2:
+        base = clamp(base + random.randint(5, 12))
+    elif outcome_tag == "guaranteed_good":
+        base = clamp(base + random.randint(2, 6))
+    elif is_bust and tier <= 2:
+        # Fallback for legacy callers
+        base = clamp(base + random.randint(3, 8))
 
-    return base
+    # Inter-tier volatility: rare spike/dip (±3 random noise)
+    noise = random.choices(
+        [0, random.randint(-4, -1), random.randint(1, 5)],
+        weights=[70, 15, 15], k=1
+    )[0]
+    return clamp(base + noise)
 
 
 # ---------------------------------------------------------------------------

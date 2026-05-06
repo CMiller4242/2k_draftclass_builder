@@ -105,6 +105,8 @@ if "draft_class" not in st.session_state:
     st.session_state.draft_class = []
 if "class_summary" not in st.session_state:
     st.session_state.class_summary = {}
+if "class_warnings" not in st.session_state:
+    st.session_state.class_warnings = []
 if "single_player" not in st.session_state:
     st.session_state.single_player = None
 if "last_class_config" not in st.session_state:
@@ -281,16 +283,17 @@ with tab_gen:
     if submitted:
         seed = int(seed_value) if use_seed else None
         with st.spinner(f"Generating {player_count} players..."):
-            players = generate_draft_class(
+            players, warnings = generate_draft_class(
                 class_type=class_type,
                 player_count=int(player_count),
                 class_flavor=class_flavor,
                 seed=seed,
             )
-            summary = get_class_summary(players)
+            summary = get_class_summary(players, warnings)
 
         st.session_state.draft_class = players
         st.session_state.class_summary = summary
+        st.session_state.class_warnings = warnings
         st.session_state.last_class_config = {
             "class_type": class_type,
             "class_flavor": class_flavor,
@@ -487,6 +490,13 @@ with tab_review:
             st.metric("Busts", summary["bust_count"])
         with col_d:
             st.metric("Bust Rate", f"{summary['bust_percentage']}%")
+
+        # Realism validation warnings
+        warnings = st.session_state.get("class_warnings", [])
+        if warnings:
+            with st.expander(f"⚠️ {len(warnings)} Realism Warning(s)", expanded=False):
+                for w in warnings:
+                    st.warning(w)
 
         # Archetype diversity
         st.markdown("**Archetype Diversity**")

@@ -254,6 +254,47 @@ DEVELOPMENT_OUTLOOKS = [
 ]
 
 # ---------------------------------------------------------------------------
+# TIER 1 HARD CAPS
+# (small_cap, large_cap) for player counts ≤30 and 31–60 respectively
+# ---------------------------------------------------------------------------
+
+TIER1_CAPS = {
+    "Generational":           (2, 3),
+    "Strong":                 (2, 2),
+    "Average":                (1, 2),
+    "Weak":                   (0, 1),
+    "Bust-heavy":             (1, 1),
+    "Top-heavy":              (2, 3),
+    "Deep role-player class": (0, 1),
+}
+
+# ---------------------------------------------------------------------------
+# BUST PROBABILITY MODIFIERS BY CLASS TYPE AND FLAVOR
+# Added to the per-tier base probability in BUST_RISK_BY_TIER.
+# ---------------------------------------------------------------------------
+
+BUST_RISK_CLASS_MODIFIERS = {
+    "Generational":           -0.08,
+    "Strong":                 -0.05,
+    "Average":                  0.0,
+    "Weak":                    0.08,
+    "Bust-heavy":              0.20,
+    "Top-heavy":               0.05,
+    "Deep role-player class": -0.10,
+}
+
+BUST_RISK_FLAVOR_MODIFIERS = {
+    "Balanced":        0.0,
+    "Guard-heavy":     0.0,
+    "Wing-heavy":      0.0,
+    "Big-heavy":       0.0,
+    "Defensive-heavy": 0.0,
+    "Shooting-heavy":  0.0,
+    "High variance":   0.15,
+    "Low variance":   -0.15,
+}
+
+# ---------------------------------------------------------------------------
 # BUST RISK BY TIER
 # ---------------------------------------------------------------------------
 # Probability that a player underperforms their potential.
