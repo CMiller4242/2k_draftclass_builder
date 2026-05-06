@@ -35,15 +35,17 @@ def generate_player(
     archetype_name: str,
     bust_modifier: float = 0.0,
     player_number: int = 0,
+    build_name: str = "",
 ) -> dict:
     """
     Generate a complete 2K player profile.
 
     Args:
-        tier: 1–4 (Superstar → Role Player/Bust)
+        tier:           1–4 (Superstar → Role Player/Bust)
         archetype_name: Key from ARCHETYPES dict
-        bust_modifier: Additional bust probability (from class flavor)
-        player_number: Draft pick number (for ordering)
+        bust_modifier:  Additional bust probability (from class flavor)
+        player_number:  Draft pick number (for ordering)
+        build_name:     Optional 2K Labs build alias (used in CSV / display)
 
     Returns:
         Full player dict ready for display/export.
@@ -95,6 +97,8 @@ def generate_player(
         "height_display": _inches_to_feetinches(height_in),
         "weight_lbs": weight_lb,
         "archetype": archetype_name,
+        # build_name: a 2K Labs build alias when available (empty string otherwise)
+        "build_name": build_name,
         "tier": tier,
         "tier_label": _tier_label(tier),
         "is_bust": is_bust,

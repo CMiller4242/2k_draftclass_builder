@@ -70,6 +70,29 @@ def render_tier_breakdown_chart(summary: dict):
             st.metric(labels[tier], count, f"{pct}%")
 
 
+def render_diversity_stats(summary: dict):
+    """Display archetype diversity metrics inline."""
+    unique   = summary.get("unique_archetypes", 0)
+    total    = summary.get("total_players", 0)
+    score    = summary.get("diversity_score", 0.0)
+    most_rep = summary.get("most_repeated_archetype", "—")
+    most_ct  = summary.get("most_repeated_count", 0)
+
+    score_pct = f"{score * 100:.0f}%"
+    available = 18   # total archetypes in the system
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Unique Archetypes", f"{unique} / {available}")
+    with col2:
+        st.metric("Diversity Score", score_pct,
+                  help="unique archetypes ÷ total players (max 100%)")
+    with col3:
+        st.metric("Most Repeated", most_rep,
+                  delta=f"{most_ct}×" if most_ct > 1 else "1× (no repeats)",
+                  delta_color="off")
+
+
 def render_archetype_distribution(summary: dict):
     """Display archetype distribution as a bar chart."""
     arch_dist = summary.get("archetype_distribution", {})

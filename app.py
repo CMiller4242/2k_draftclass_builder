@@ -94,6 +94,7 @@ from components.player_cards import (
 from components.tables import (
     render_class_summary_table, render_tier_breakdown_chart,
     render_archetype_distribution, render_position_distribution,
+    render_diversity_stats,
 )
 from components.filters import render_class_filters
 from components.build_mapper_ui import render_build_mapper_section
@@ -486,6 +487,10 @@ with tab_review:
             st.metric("Busts", summary["bust_count"])
         with col_d:
             st.metric("Bust Rate", f"{summary['bust_percentage']}%")
+
+        # Archetype diversity
+        st.markdown("**Archetype Diversity**")
+        render_diversity_stats(summary)
 
         # Distribution charts
         chart_col1, chart_col2 = st.columns(2)
