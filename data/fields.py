@@ -294,8 +294,12 @@ INSIDE_SCORING_BADGES = [
     "Float Game",
     "Giant Slayer",
     "Layup Mixmaster",
+    "Paint Prodigy",       # 2K26 — paint scoring efficiency
+    "Physical Finisher",   # 2K26 — contact finishing through traffic
     "Post Fade Phenom",
+    "Post Powerhouse",     # 2K26 — dominant post-up scoring
     "Post Spin Technician",
+    "Posterizer",          # 2K26 — poster dunk specialist
     "Pro Touch",
     "Putback Artist",
     "Rise Up",
@@ -317,6 +321,8 @@ OUTSIDE_SCORING_BADGES = [
     "Pull-Up Precision",
     "Quick Draw",
     "Rhythm Shooter",
+    "Set Shot Specialist",  # 2K26 — stationary/spot-up shooting
+    "Shifty Shooter",       # 2K26 — self-created pull-up shooting
     "Shimmy Shooter",
     "Slippery Off-Ball",
     "Space Creator",
@@ -329,6 +335,7 @@ PLAYMAKING_BADGES = [
     "Break Starter",
     "Chef",
     "Clamp Breaker",
+    "Dimer",                # 2K26 — elite passing and assist generation
     "Downhill",
     "Dream Shaker",
     "Dribble Weave",
@@ -346,6 +353,7 @@ PLAYMAKING_BADGES = [
     "Special Delivery",
     "Stop and Go",
     "Unpluckable",
+    "Versatile Visionary",  # 2K26 — decision-making in multiple offensive roles
     "Versatilist",
 ]
 
@@ -362,9 +370,12 @@ DEFENDING_BADGES = [
     "Glove",
     "Guard Up",
     "Hard Foul",
+    "High-Flying Denier",  # 2K26 — contesting above-the-rim attempts
     "High-Low Detective",
     "Intimidator",
     "Menace",
+    "On-Ball Menace",      # 2K26 — sustained on-ball defensive pressure
+    "Pick Dodger",         # 2K26 — navigating screens on defense
     "Pogo Stick",
     "Rim Protector",
     "Shot Contester",
@@ -395,6 +406,7 @@ ATHLETICISM_BADGES = [
 
 REBOUNDING_BADGES = [
     "Aerial Wizard",
+    "Boxout Beast",        # 2K26 — body positioning for rebounding
     "Brick Wall",
     "Corner Pocket",
     "Crash",
