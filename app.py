@@ -96,6 +96,8 @@ from components.tables import (
     render_archetype_distribution, render_position_distribution,
 )
 from components.filters import render_class_filters
+from components.build_mapper_ui import render_build_mapper_section
+from utils.build_mapper import find_excel_path
 
 # ── Session state initialisation ─────────────────────────────────────────────
 if "draft_class" not in st.session_state:
@@ -431,6 +433,26 @@ with tab_arch:
                     f'<span style="color:#CCCCCC">{", ".join(badge_list[:5])}</span>',
                     unsafe_allow_html=True,
                 )
+
+            # Show build name keywords if defined on this archetype
+            kw = arch_data.get("build_name_keywords")
+            if kw:
+                st.markdown(
+                    f'<span style="color:#888888; font-size:0.82em">🔑 Build name keywords: '
+                    f'{", ".join(kw)}</span>',
+                    unsafe_allow_html=True,
+                )
+
+    # ── 2K Labs Build Name Mapping ───────────────────────────────────────────
+    _excel_path = find_excel_path()
+    if _excel_path:
+        render_build_mapper_section(_excel_path)
+    else:
+        st.divider()
+        st.warning(
+            f"⚠️ Build name mapping requires **Archs for Build.xlsx** in the project root. "
+            f"File not found."
+        )
 
 
 # =============================================================================
