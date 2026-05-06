@@ -1,5 +1,5 @@
 """
-Export utilities for JSON and CSV output.
+Export utilities for JSON, CSV, and XLSX output.
 
 CSV column order:
   1. Identity / summary  — pick, name, position, height, archetype, build_name,
@@ -9,12 +9,22 @@ CSV column order:
                            Potential is NOT repeated here.
   3. Tendencies          — grouped in 2K order
   4. Badges              — grouped by category
+
+XLSX workbook sheets:
+  1. Player Profiles — identity + scouting fields
+  2. Attributes      — pick identity + all attributes (Potential first)
+  3. Tendencies      — pick identity + all tendencies
+  4. Badges          — pick identity + all badges by category
+  5. Class Summary   — aggregate stats
 """
 
 import json
 import csv
 import io
-from typing import List
+from io import BytesIO
+from typing import List, Optional
+
+import pandas as pd
 
 from data.fields import ATTRIBUTE_CATEGORIES, TENDENCY_CATEGORIES, ALL_BADGES
 from utils.scouting import generate_scouting_summary
@@ -142,3 +152,198 @@ def class_summary_to_json(summary: dict) -> str:
     # top_picks contains full player dicts — omit for a clean summary export
     clean = {k: v for k, v in summary.items() if k != "top_picks"}
     return json.dumps(clean, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# XLSX EXPORT
+# ---------------------------------------------------------------------------
+
+def players_to_xlsx(
+    players: List[dict],
+    class_summary: Optional[dict] = None,
+    class_config: Optional[dict] = None,
+) -> bytes:
+    """
+    Export players to an Excel workbook with 5 sheets.
+
+    Sheets:
+      1. Player Profiles — identity + scouting fields
+      2. Attributes      — identity stub + all attributes (Potential first)
+      3. Tendencies      — identity stub + all tendencies in 2K order
+      4. Badges          — identity stub + all badges grouped by category
+      5. Class Summary   — aggregate stats
+
+    Returns raw XLSX bytes suitable for st.download_button(data=...).
+    """
+    if not players:
+        return b""
+
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        _write_profiles_sheet(writer, players)
+        _write_attributes_sheet(writer, players)
+        _write_tendencies_sheet(writer, players)
+        _write_badges_sheet(writer, players)
+        _write_summary_sheet(writer, players, class_summary, class_config)
+
+    return buf.getvalue()
+
+
+# -- identity stub shared across attribute/tendency/badge sheets -------------
+
+def _id_stub(player: dict) -> dict:
+    return {
+        "Pick":      player["pick_number"],
+        "Name":      player["name"],
+        "Position":  player["position"],
+        "Archetype": player["archetype"],
+    }
+
+
+# -- Sheet 1: Player Profiles ------------------------------------------------
+
+def _write_profiles_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
+    rows = []
+    for p in players:
+        attrs = p.get("attributes", {})
+        rows.append({
+            "Pick":               p["pick_number"],
+            "Name":               p["name"],
+            "Position":           p["position"],
+            "Secondary Position": p.get("secondary_position") or "",
+            "Height":             p["height_display"],
+            "Weight (lbs)":       p["weight_lbs"],
+            "Archetype":          p["archetype"],
+            "Build Name":         p.get("build_name") or "",
+            "Tier":               p["tier"],
+            "Tier Label":         p["tier_label"],
+            "Potential":          attrs.get("Potential", ""),
+            "Projected Role":     p.get("projected_role", ""),
+            "Bust Risk":          p.get("bust_risk", ""),
+            "Is Bust":            p.get("is_bust", False),
+            "Outcome Tag":        p.get("outcome_tag", ""),
+            "Sleeper Subtype":    p.get("sleeper_subtype") or "",
+            "Development Outlook": p.get("development_outlook", ""),
+            "Scouting Summary":   generate_scouting_summary(p),
+        })
+    pd.DataFrame(rows).to_excel(writer, sheet_name="Player Profiles", index=False)
+
+
+# -- Sheet 2: Attributes -----------------------------------------------------
+
+_ATTR_ORDER = [
+    attr
+    for category in ATTRIBUTE_CATEGORIES.values()
+    for attr in category
+    if attr != "Potential"
+]
+
+
+def _write_attributes_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
+    rows = []
+    for p in players:
+        attrs = p.get("attributes", {})
+        row = _id_stub(p)
+        row["Potential"] = attrs.get("Potential", "")   # Potential first
+        for attr in _ATTR_ORDER:
+            row[attr] = attrs.get(attr, "")
+        rows.append(row)
+    pd.DataFrame(rows).to_excel(writer, sheet_name="Attributes", index=False)
+
+
+# -- Sheet 3: Tendencies -----------------------------------------------------
+
+_TEND_ORDER = [
+    tend
+    for category in TENDENCY_CATEGORIES.values()
+    for tend in category
+]
+
+
+def _write_tendencies_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
+    rows = []
+    for p in players:
+        tends = p.get("tendencies", {})
+        row = _id_stub(p)
+        for tend in _TEND_ORDER:
+            row[tend] = tends.get(tend, "")
+        rows.append(row)
+    pd.DataFrame(rows).to_excel(writer, sheet_name="Tendencies", index=False)
+
+
+# -- Sheet 4: Badges ---------------------------------------------------------
+
+def _write_badges_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
+    # Deduplicate badge names while preserving category order
+    seen: set = set()
+    badge_order: List[str] = []
+    for badge_list in ALL_BADGES.values():
+        for badge in badge_list:
+            if badge not in seen:
+                badge_order.append(badge)
+                seen.add(badge)
+
+    rows = []
+    for p in players:
+        badges = p.get("badges", {})
+        row = _id_stub(p)
+        for badge in badge_order:
+            row[badge] = badges.get(badge, "None")
+        rows.append(row)
+    pd.DataFrame(rows).to_excel(writer, sheet_name="Badges", index=False)
+
+
+# -- Sheet 5: Class Summary --------------------------------------------------
+
+def _write_summary_sheet(
+    writer: pd.ExcelWriter,
+    players: List[dict],
+    summary: Optional[dict],
+    config: Optional[dict],
+) -> None:
+    s = summary or {}
+    cfg = config or {}
+
+    tier_breakdown = s.get("tier_breakdown", {t: sum(1 for p in players if p["tier"] == t) for t in range(1, 5)})
+    sleeper_counts = s.get("sleeper_counts", {})
+    outcome_tags   = s.get("outcome_tag_counts", {})
+    warnings       = s.get("validation_warnings", [])
+
+    rows = [
+        ("Class Type",              cfg.get("class_type", "")),
+        ("Class Flavor",            cfg.get("class_flavor", "")),
+        ("Player Count",            len(players)),
+        ("", ""),
+        ("Tier 1 (Superstar)",      tier_breakdown.get(1, 0)),
+        ("Tier 2 (All-Star)",       tier_breakdown.get(2, 0)),
+        ("Tier 3 (Starter)",        tier_breakdown.get(3, 0)),
+        ("Tier 4 (Role Player)",    tier_breakdown.get(4, 0)),
+        ("", ""),
+        ("Bust Count",              s.get("bust_count", sum(1 for p in players if p.get("is_bust")))),
+        ("Bust %",                  s.get("bust_percentage", "")),
+        ("Avg Potential",           s.get("avg_potential", "")),
+        ("", ""),
+        ("Unique Archetypes",       s.get("unique_archetypes", "")),
+        ("Diversity Score",         s.get("diversity_score", "")),
+        ("Most Repeated Archetype", s.get("most_repeated_archetype", "")),
+        ("Most Repeated Count",     s.get("most_repeated_count", "")),
+        ("", ""),
+        ("Role Sleepers",           sleeper_counts.get("role_sleeper", 0)),
+        ("Starter Sleepers",        sleeper_counts.get("starter_sleeper", 0)),
+        ("Star Sleepers",           sleeper_counts.get("star_sleeper", 0)),
+        ("Legendary Sleepers",      sleeper_counts.get("legendary_sleeper", 0)),
+        ("", ""),
+        ("Guaranteed Good",         outcome_tags.get("guaranteed_good", 0)),
+        ("Bust Risk",               outcome_tags.get("bust_risk", 0)),
+        ("True Busts",              outcome_tags.get("true_bust", 0)),
+        ("Limited Role Players",    outcome_tags.get("limited_role_player", 0)),
+    ]
+
+    if warnings:
+        rows.append(("", ""))
+        rows.append(("Realism Warnings", ""))
+        for w in warnings:
+            rows.append(("", w))
+
+    df = pd.DataFrame(rows, columns=["Metric", "Value"])
+    df.to_excel(writer, sheet_name="Class Summary", index=False)

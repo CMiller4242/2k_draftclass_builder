@@ -86,7 +86,7 @@ from utils.generate_player import generate_player
 from utils.scouting import (
     generate_scouting_summary, generate_development_notes, generate_2k_entry_notes,
 )
-from utils.export_utils import players_to_json, players_to_csv
+from utils.export_utils import players_to_json, players_to_csv, players_to_xlsx
 from utils.scaling import scale_tier_distribution
 from components.player_cards import (
     render_player_card_compact, render_player_detail, TIER_COLORS,
@@ -565,7 +565,7 @@ with tab_export:
         ).replace(" ", "_").lower()
 
         st.markdown("### Full Draft Class Export")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             st.markdown("**JSON Export**")
@@ -581,14 +581,27 @@ with tab_export:
         with col2:
             st.markdown("**CSV Export**")
             st.caption(
-                "Flat CSV with one row per player. All attributes and tendencies "
-                "become columns. Good for spreadsheets."
+                "Flat CSV — one row per player, all attributes/tendencies as columns."
             )
             st.download_button(
                 "⬇️ Download Full Class (CSV)",
                 data=players_to_csv(players),
                 file_name=f"{class_name}.csv",
                 mime="text/csv",
+                use_container_width=True,
+            )
+
+        with col3:
+            st.markdown("**Excel Export**")
+            st.caption(
+                "Multi-sheet workbook: Profiles, Attributes, Tendencies, "
+                "Badges, and Class Summary."
+            )
+            st.download_button(
+                "⬇️ Download Full Class (XLSX)",
+                data=players_to_xlsx(players, summary, config),
+                file_name=f"{class_name}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
 
