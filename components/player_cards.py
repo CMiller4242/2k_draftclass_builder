@@ -6,6 +6,7 @@ Renders compact player cards and expanded full-detail views.
 import streamlit as st
 from data.fields import ATTRIBUTE_CATEGORIES, TENDENCY_CATEGORIES, ALL_BADGES
 from utils.scouting import generate_scouting_summary, generate_development_notes, generate_2k_entry_notes
+from utils.outlook import validate_player_profile
 
 
 # Tier color map for visual hierarchy
@@ -101,6 +102,10 @@ def render_player_detail(player: dict):
             "⚠️ **BUST RISK** — This prospect has high potential on paper but may "
             "significantly underperform expectations."
         )
+
+    # Profile coherence warnings (dev-mode guard rail; should never fire post-fix)
+    for w in validate_player_profile(player):
+        st.error(f"⚠️ Profile inconsistency: {w}")
 
     # Summary cards row
     col1, col2, col3, col4 = st.columns(4)

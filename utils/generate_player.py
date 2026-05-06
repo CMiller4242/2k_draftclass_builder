@@ -23,7 +23,8 @@ from data.fields import (
     POST_GAME_TENDENCIES, FREELANCE_TENDENCIES, DEFENSE_TENDENCIES,
 )
 from data.badge_data import BADGE_BUDGET
-from data.class_rules import BUST_RISK_BY_TIER, PROJECTED_ROLES, DEVELOPMENT_OUTLOOKS
+from data.class_rules import BUST_RISK_BY_TIER, PROJECTED_ROLES
+from utils.outlook import assign_player_outlook
 from utils.random_utils import (
     clamp, rand_in_range, jitter, scale_range, generate_name,
     weighted_choice, pick_weighted_from_dict,
@@ -83,11 +84,10 @@ def generate_player(
     # Generate badges
     badges = _generate_badges(archetype, tier)
 
-    # Pick projected role and development outlook
+    # Pick projected role (tier-gated)
     projected_role = random.choice(PROJECTED_ROLES[tier])
-    development = random.choice(DEVELOPMENT_OUTLOOKS)
-    bust_risk_label = _bust_risk_label(tier, is_bust)
 
+    # Build the initial player dict
     player = {
         "name": generate_name(),
         "pick_number": player_number,
@@ -103,12 +103,15 @@ def generate_player(
         "tier_label": _tier_label(tier),
         "is_bust": is_bust,
         "projected_role": projected_role,
-        "development_outlook": development,
-        "bust_risk": bust_risk_label,
+        "development_outlook": "",  # filled by assign_player_outlook below
+        "bust_risk": "",            # filled by assign_player_outlook below
         "attributes": attributes,
         "tendencies": tendencies,
         "badges": badges,
     }
+
+    # Assign coherent outlook labels (tier + potential + bust-gated)
+    player.update(assign_player_outlook(player))
 
     return player
 
@@ -313,18 +316,6 @@ def _tier_label(tier: int) -> str:
         4: "Role Player / Bust",
     }
     return labels.get(tier, "Unknown")
-
-
-def _bust_risk_label(tier: int, is_bust: bool) -> str:
-    if is_bust:
-        return "High — Underperforming Prospect"
-    risk_map = {
-        1: "Low",
-        2: "Moderate",
-        3: "Moderate-High",
-        4: "High",
-    }
-    return risk_map.get(tier, "Unknown")
 
 
 def _inches_to_feetinches(inches: int) -> str:
