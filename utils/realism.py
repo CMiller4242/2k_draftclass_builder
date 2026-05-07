@@ -65,10 +65,13 @@ _POS_TO_GROUP = {
 
 def _player_pos_group(player: dict) -> set:
     """
-    Return the set of position groups a player covers, considering archetype
-    plus primary and secondary positions. SG counts as guard, PF/C as big.
+    Return the set of position groups a player covers based on actual primary
+    and secondary positions only. Archetype labels (e.g. "Lockdown Guard")
+    are intentionally NOT consulted: an SF with a Lockdown Guard archetype
+    should not satisfy a guard requirement unless he has PG/SG primary or
+    secondary.
     """
-    groups = {arch_pos_group(player.get("archetype", ""))}
+    groups: set = set()
     for key in ("position", "secondary_position"):
         pos = player.get(key) or ""
         if pos in _POS_TO_GROUP:

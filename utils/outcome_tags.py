@@ -44,14 +44,36 @@ def assign_outcome_tags(
     class_mod  = BUST_RISK_CLASS_MODIFIERS.get(class_type, 0.0)
     flavor_mod = BUST_RISK_FLAVOR_MODIFIERS.get(class_flavor, 0.0)
     gg_rate    = _GUARANTEED_GOOD_RATES.get(class_type, 0.0)
+    softening  = _TRUE_BUST_SOFTENING.get(class_type, 0.0)
 
     return [
-        _assign_one(tier, class_mod, flavor_mod, gg_rate)
+        _assign_one(tier, class_mod, flavor_mod, gg_rate, softening)
         for tier, _arch in tier_archetype_pairs
     ]
 
 
-def _assign_one(tier: int, class_mod: float, flavor_mod: float, gg_rate: float) -> str:
+# Probability that a Tier 3/4 true_bust outcome is downgraded to
+# limited_role_player. Bust-heavy / High-variance classes preserve the heavy
+# bust feel; Average / Strong / Generational soften it so the class doesn't
+# read as half-failures. Tier 1/2 bust_risk is unaffected.
+_TRUE_BUST_SOFTENING = {
+    "Generational":           0.55,
+    "Strong":                 0.45,
+    "Average":                0.35,
+    "Top-heavy":              0.30,
+    "Deep role-player class": 0.45,
+    "Weak":                   0.15,
+    "Bust-heavy":             0.0,
+}
+
+
+def _assign_one(
+    tier: int,
+    class_mod: float,
+    flavor_mod: float,
+    gg_rate: float,
+    softening: float = 0.0,
+) -> str:
     # Guaranteed good applies only to Tier 1 picks
     if tier == 1 and random.random() < gg_rate:
         return "guaranteed_good"
@@ -60,7 +82,15 @@ def _assign_one(tier: int, class_mod: float, flavor_mod: float, gg_rate: float) 
 
     if random.random() < bust_prob:
         # Tier 1/2 busts are high-ceiling paper prospects (not failures)
-        return "bust_risk" if tier <= 2 else "true_bust"
+        if tier <= 2:
+            return "bust_risk"
+        # Tier 3/4 → true_bust by default, but soften some into limited role
+        # players for non-bust-heavy classes so the class doesn't feel
+        # uniformly broken. Tier 4 softens to limited_role_player; Tier 3
+        # softens to "normal" (fringe rotation contributor).
+        if softening > 0.0 and random.random() < softening:
+            return "limited_role_player" if tier == 4 else "normal"
+        return "true_bust"
 
     # Non-bust Tier 4 → limited role player (makes a roster, just not a star)
     if tier == 4:

@@ -31,7 +31,7 @@ from utils.random_utils import (
 )
 from utils.vitals import (
     generate_wingspan, normalize_rookie_attribute_strength,
-    enforce_attribute_specialization,
+    enforce_attribute_specialization, enforce_total_elite_caps,
     generate_boom_avg_bust_percentages, generate_peak_age_window,
     _wingspan_feet_str,
 )
@@ -157,6 +157,10 @@ def generate_player(
     # Tighten off-identity attribute spread for non-elite class types so a
     # Slashing Forward doesn't end up elite at 8 unrelated attributes.
     enforce_attribute_specialization(player, class_type)
+
+    # Cap total elite-attribute breadth for tightened classes. Preserves
+    # archetype identity by demoting the lowest-valued over-threshold attrs.
+    enforce_total_elite_caps(player, class_type)
 
     # Cap badge counts to realistic rookie levels
     enforce_rookie_badge_caps(player)

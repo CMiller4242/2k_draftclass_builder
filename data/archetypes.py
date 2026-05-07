@@ -321,7 +321,7 @@ ARCHETYPES = {
             "together with elite IQ, communication, and versatility. Minimal "
             "offensive role but irreplaceable on winning teams."
         ),
-        "valid_positions": ["SG", "SF", "PF", "PG/SG", "SF/PF"],
+        "valid_positions": ["SF", "PF", "SF/PF", "PF/SF", "PF/C"],
         "height_range_inches": (76, 82),   # 6'4" to 6'10"
         "weight_range_lbs": (210, 245),
         "attribute_priorities": {
@@ -762,7 +762,7 @@ ARCHETYPES = {
             "ball handlers. Elite lateral quickness, hands, and defensive IQ "
             "make him a nightmare assignment every night."
         ),
-        "valid_positions": ["PG", "SG", "SF", "PG/SG", "SG/SF"],
+        "valid_positions": ["PG", "SG", "PG/SG", "SG/PG", "SG/SF"],
         "height_range_inches": (73, 79),   # 6'1" to 6'7"
         "weight_range_lbs": (185, 220),
         "build_name_keywords": [

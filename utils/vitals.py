@@ -82,6 +82,18 @@ _SPECIALIZATION_CAPS = {
     4: (80, 0),
 }
 
+# Total-elite caps for tightened classes — even priority attrs are capped so
+# a Tier 1 prospect doesn't end up with 7+ attributes ≥90 or 12+ attributes
+# ≥85. (max_count_at_90, max_count_at_85). Demotes lowest-valued priorities
+# above the cap. Star/elite classes (Generational, Strong, Top-heavy) are
+# left alone so top-end profiles aren't flattened.
+_TIGHTENED_TOTAL_ELITE_CAPS = {
+    1: (4, 8),
+    2: (3, 6),
+    3: (1, 4),
+    4: (0, 2),
+}
+
 _TIGHTENED_CLASSES = frozenset({
     "Average", "Weak", "Bust-heavy", "Deep role-player class"
 })
@@ -157,6 +169,48 @@ def enforce_attribute_specialization(player: dict, class_type: str) -> None:
     off_identity_high.sort(key=lambda x: x[1])
     for k, _v in off_identity_high[:excess]:
         attrs[k] = random.randint(max(60, threshold - 8), threshold - 2)
+
+
+def enforce_total_elite_caps(player: dict, class_type: str) -> None:
+    """
+    For tightened classes (Average / Weak / Bust-heavy / Deep role-player),
+    cap how many attributes can be ≥90 and ≥85 in total — including
+    priority attributes. Keeps top picks from reading "elite at everything".
+
+    Demotion preserves archetype identity by demoting the LOWEST-valued
+    over-threshold attributes first (priority included). Durability and
+    mental attributes are exempt.
+    """
+    if class_type not in _TIGHTENED_CLASSES:
+        return
+    tier = player["tier"]
+    cap90, cap85 = _TIGHTENED_TOTAL_ELITE_CAPS[tier]
+
+    attrs = player["attributes"]
+
+    def _eligible(k: str) -> bool:
+        if k in _SKIP_ATTRS:
+            return False
+        if k in DURABILITY_ATTRIBUTES or k in MENTAL_ATTRIBUTES:
+            return False
+        return True
+
+    # Cap ≥90 first, then ≥85 (descending threshold ordering).
+    over_90 = sorted(
+        [(k, v) for k, v in attrs.items() if _eligible(k) and v >= 90],
+        key=lambda x: x[1],
+    )
+    excess = max(0, len(over_90) - cap90)
+    for k, _v in over_90[:excess]:
+        attrs[k] = random.randint(85, 89)
+
+    over_85 = sorted(
+        [(k, v) for k, v in attrs.items() if _eligible(k) and v >= 85],
+        key=lambda x: x[1],
+    )
+    excess = max(0, len(over_85) - cap85)
+    for k, _v in over_85[:excess]:
+        attrs[k] = random.randint(78, 84)
 
 
 # ---------------------------------------------------------------------------
