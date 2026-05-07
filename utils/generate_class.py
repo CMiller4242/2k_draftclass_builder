@@ -150,8 +150,9 @@ def select_archetypes_for_class(
     elif class_flavor == "Low variance":
         return _select_low_variance(player_count, archetypes, weights)
     else:
-        return [random.choices(archetypes, weights=weights, k=1)[0]
-                for _ in range(player_count)]
+        return _select_with_repeat_cap(
+            player_count, archetypes, weights, class_flavor,
+        )
 
 
 def _select_high_variance(player_count: int, archetypes: list) -> list:
@@ -215,6 +216,63 @@ def _select_low_variance(
 
     return [random.choices(archetypes, weights=boosted_weights, k=1)[0]
             for _ in range(player_count)]
+
+
+# Per-flavor max copies of any single archetype in a 30-player class.
+# Scales linearly with player_count; rounded with a small floor.
+_REPEAT_CAP_30 = {
+    "Balanced":         4,
+    "Guard-heavy":      6,
+    "Wing-heavy":       6,
+    "Big-heavy":        6,
+    "Defensive-heavy":  6,
+    "Shooting-heavy":   6,
+}
+
+
+def _archetype_cap(class_flavor: str, player_count: int) -> int:
+    """Max copies of any single archetype for a class of this size."""
+    base = _REPEAT_CAP_30.get(class_flavor, 6)
+    if player_count <= 0:
+        return base
+    cap = max(2, round(base * player_count / 30))
+    return cap
+
+
+def _select_with_repeat_cap(
+    player_count: int,
+    archetypes: list,
+    weights: list,
+    class_flavor: str,
+) -> list:
+    """
+    Standard weighted selection with a per-archetype repeat cap.
+
+    For Balanced (cap=4 in 30) and other non-extreme flavors, this prevents
+    a single archetype dominating the class (e.g. Lockdown Guard ×8). When
+    an archetype reaches its cap, it's removed from the candidate pool for
+    the remaining picks. If the pool empties (extreme low-archetype
+    weighting), fall back to standard sampling for the remainder.
+    """
+    cap = _archetype_cap(class_flavor, player_count)
+    counts = {a: 0 for a in archetypes}
+    out: list = []
+
+    for _ in range(player_count):
+        # Filter out archetypes that have reached the cap
+        live = [(a, w) for a, w in zip(archetypes, weights)
+                if counts[a] < cap and w > 0]
+        if not live:
+            # Fallback: keep generating from full pool unconstrained
+            pick = random.choices(archetypes, weights=weights, k=1)[0]
+        else:
+            live_archs = [a for a, _ in live]
+            live_w     = [w for _, w in live]
+            pick = random.choices(live_archs, weights=live_w, k=1)[0]
+        out.append(pick)
+        counts[pick] = counts.get(pick, 0) + 1
+
+    return out
 
 
 # ---------------------------------------------------------------------------

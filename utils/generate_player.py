@@ -32,6 +32,7 @@ from utils.random_utils import (
 from utils.vitals import (
     generate_wingspan, normalize_rookie_attribute_strength,
     enforce_attribute_specialization, enforce_total_elite_caps,
+    enforce_archetype_attr_separation, clamp_extreme_99s,
     generate_boom_avg_bust_percentages, generate_peak_age_window,
     _wingspan_feet_str,
 )
@@ -158,9 +159,18 @@ def generate_player(
     # Slashing Forward doesn't end up elite at 8 unrelated attributes.
     enforce_attribute_specialization(player, class_type)
 
+    # Separate Paint Bully OREB/DREB from Glass Cleaner identity (tightened
+    # classes only). Done before the total-elite cap so the cap accounts
+    # for the demoted rebound numbers.
+    enforce_archetype_attr_separation(player, class_type)
+
     # Cap total elite-attribute breadth for tightened classes. Preserves
     # archetype identity by demoting the lowest-valued over-threshold attrs.
     enforce_total_elite_caps(player, class_type)
+
+    # Make 99 ratings very rare in tightened classes — at most one, on a
+    # primary archetype-identity attribute. Mental/consistency never 99.
+    clamp_extreme_99s(player, class_type)
 
     # Cap badge counts to realistic rookie levels
     enforce_rookie_badge_caps(player)

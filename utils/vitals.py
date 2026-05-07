@@ -98,6 +98,22 @@ _TIGHTENED_CLASSES = frozenset({
     "Average", "Weak", "Bust-heavy", "Deep role-player class"
 })
 
+# Attributes outside DURABILITY that should still count toward the elite cap.
+# Mental/consistency attrs and a couple of "support" offensive attrs were
+# previously exempt and quietly let top picks reach 10–12 attrs ≥85. Now
+# included so the cap reflects total relevant-attribute breadth.
+_ELITE_INCLUDE_EXTRAS = frozenset({
+    # Mental
+    "Pass Perception", "Defensive Consistency",
+    "Help Defense IQ", "Offensive Consistency",
+    # Offensive support attrs that were previously exempt as "mental"
+    "Shot IQ",
+    # Athleticism support
+    "Hustle",
+    # Free-throw / draw-foul should not freely spike either
+    "Free Throw", "Draw Foul",
+})
+
 # Athleticism (Speed/Vertical/Strength/Agility) is treated as identity for
 # wing/big archetypes by default — even non-priority athleticism on a
 # Slashing Forward shouldn't be clipped just because it isn't in the priority
@@ -171,15 +187,140 @@ def enforce_attribute_specialization(player: dict, class_type: str) -> None:
         attrs[k] = random.randint(max(60, threshold - 8), threshold - 2)
 
 
+# Archetype "primary identity" attributes — the small set of priority attrs
+# that define what the archetype is. A single 99 may live here for the
+# tightened-class one-99 allowance; everything else clamps down.
+_ARCH_PRIMARY_IDENTITY = {
+    "Movement Shooter":     {"Three Point Shot", "Mid Range Shot"},
+    "Iso Creator":          {"Ball Handle", "Mid Range Shot", "Driving Layup"},
+    "Lockdown Guard":       {"Perimeter Defense", "Steal"},
+    "Shot Hunter":          {"Three Point Shot", "Mid Range Shot"},
+    "Two-Way Wing":         {"Perimeter Defense", "Three Point Shot"},
+    "Slashing Forward":     {"Driving Dunk", "Driving Layup"},
+    "Defensive Connector":  {"Perimeter Defense", "Help Defense IQ"},
+    "3-Level Scorer":       {"Three Point Shot", "Mid Range Shot", "Driving Layup"},
+    "Mid-Range Specialist": {"Mid Range Shot"},
+    "High Flyer":           {"Driving Dunk", "Vertical"},
+    "Inside-Out Scorer":    {"Three Point Shot", "Driving Layup"},
+    "Rim Running Big":      {"Standing Dunk", "Vertical"},
+    "Playmaking Big":       {"Pass Vision", "Pass IQ", "Pass Accuracy"},
+    "Stretch Big":          {"Three Point Shot"},
+    "Paint Bully":          {"Post Control", "Post Hook", "Strength"},
+    "Glass Cleaner":        {"Offensive Rebound", "Defensive Rebound"},
+    "Break Starter":        {"Pass Vision", "Pass Accuracy"},
+    "Putback Finisher":     {"Offensive Rebound", "Standing Dunk"},
+}
+
+# Mental/consistency attrs that should almost never be 99 in tightened classes.
+_NEVER_99_IN_TIGHTENED = frozenset({
+    "Pass Perception", "Defensive Consistency",
+    "Help Defense IQ", "Offensive Consistency",
+    "Shot IQ", "Hustle",
+    "Free Throw", "Draw Foul",
+    "Stamina", "Agility",
+})
+
+
+def clamp_extreme_99s(player: dict, class_type: str) -> None:
+    """
+    Make 99 ratings very rare in tightened classes (Average / Weak / etc.).
+
+    - Mental/consistency/support attrs in _NEVER_99_IN_TIGHTENED never hit 99.
+    - At most ONE 99 is allowed across non-durability attrs, and only when it
+      sits on a primary archetype-identity attribute.
+    - Excess 99s are clamped to 94–96 (still elite, not max).
+    - Durability is left alone (always near-max by design).
+    - Star/Generational classes are untouched.
+    """
+    if class_type not in _TIGHTENED_CLASSES:
+        return
+
+    arch = player.get("archetype", "")
+    primary_identity = _ARCH_PRIMARY_IDENTITY.get(arch, set())
+
+    attrs = player["attributes"]
+
+    # Step 1: never-99 attrs — clamp regardless of role
+    for k in list(attrs.keys()):
+        if k in _NEVER_99_IN_TIGHTENED and attrs.get(k, 0) >= 99:
+            attrs[k] = random.randint(92, 95)
+
+    # Step 2: at most one 99 total, must be primary identity
+    nondur_99s = [
+        (k, v) for k, v in attrs.items()
+        if k not in _SKIP_ATTRS
+        and k not in DURABILITY_ATTRIBUTES
+        and v >= 99
+    ]
+    if not nondur_99s:
+        return
+
+    # Pick the 99 to keep: prefer one in primary identity, else demote all.
+    keeper = None
+    for k, _v in nondur_99s:
+        if k in primary_identity:
+            keeper = k
+            break
+
+    for k, _v in nondur_99s:
+        if k == keeper:
+            continue
+        attrs[k] = random.randint(94, 96)
+
+
+# ---------------------------------------------------------------------------
+# ARCHETYPE-SPECIFIC POST-GENERATION CLEANUP
+# ---------------------------------------------------------------------------
+
+def enforce_archetype_attr_separation(player: dict, class_type: str) -> None:
+    """
+    Prevent specific archetype overlaps that erode archetype identity.
+
+    Currently:
+      - Paint Bully should not have BOTH Offensive Rebound AND Defensive
+        Rebound elite (≥90) at the same time. Glass Cleaner owns extreme
+        rebounding. For Paint Bully in tightened classes, if both rebounds
+        sit ≥85, demote the smaller one (or Offensive Rebound by default,
+        since Glass Cleaner owns OREB) to 78–84. Allows good rebounding,
+        avoids dual-elite rebounding.
+    """
+    if class_type not in _TIGHTENED_CLASSES:
+        return
+    arch = player.get("archetype", "")
+    attrs = player["attributes"]
+
+    if arch == "Paint Bully":
+        oreb = attrs.get("Offensive Rebound", 0)
+        dreb = attrs.get("Defensive Rebound", 0)
+        # If both simultaneously elite (≥85), demote the lower one. If both
+        # are equal/very high, prefer demoting OREB (Glass Cleaner identity).
+        if oreb >= 85 and dreb >= 85:
+            if oreb >= dreb:
+                attrs["Offensive Rebound"] = random.randint(72, 80)
+            else:
+                attrs["Defensive Rebound"] = random.randint(76, 84)
+        # Hard ceiling: neither rebound stat hits 90+ on a Paint Bully in
+        # tightened classes — that lane belongs to Glass Cleaner.
+        if attrs.get("Offensive Rebound", 0) >= 90:
+            attrs["Offensive Rebound"] = random.randint(80, 86)
+        if attrs.get("Defensive Rebound", 0) >= 90:
+            attrs["Defensive Rebound"] = random.randint(82, 88)
+
+
 def enforce_total_elite_caps(player: dict, class_type: str) -> None:
     """
     For tightened classes (Average / Weak / Bust-heavy / Deep role-player),
     cap how many attributes can be ≥90 and ≥85 in total — including
-    priority attributes. Keeps top picks from reading "elite at everything".
+    priority attributes AND mental/consistency/support attributes. Keeps
+    top picks from reading "elite at everything", and prevents the leak
+    where Pass Perception / Defensive Consistency / Help Defense IQ /
+    Offensive Consistency / Shot IQ / Hustle pile on at 85–95 because
+    they weren't previously counted.
 
     Demotion preserves archetype identity by demoting the LOWEST-valued
-    over-threshold attributes first (priority included). Durability and
-    mental attributes are exempt.
+    over-threshold attributes first. Mental/Hustle/etc. are demoted before
+    archetype priority attrs at equal value (the priority list defines
+    identity). Durability stays exempt.
     """
     if class_type not in _TIGHTENED_CLASSES:
         return
@@ -188,17 +329,37 @@ def enforce_total_elite_caps(player: dict, class_type: str) -> None:
 
     attrs = player["attributes"]
 
+    # Look up archetype priorities so we demote off-priority attrs first.
+    from data.archetypes import ARCHETYPES
+    arch = ARCHETYPES.get(player.get("archetype", ""), {})
+    priority_keys = set(arch.get("attribute_priorities", {}).keys())
+
     def _eligible(k: str) -> bool:
         if k in _SKIP_ATTRS:
             return False
-        if k in DURABILITY_ATTRIBUTES or k in MENTAL_ATTRIBUTES:
+        if k in DURABILITY_ATTRIBUTES:
+            return False
+        # Include mental/consistency only when they appear in the explicit
+        # extras list; otherwise still skip MENTAL_ATTRIBUTES if any future
+        # entry shouldn't count.
+        if k in MENTAL_ATTRIBUTES and k not in _ELITE_INCLUDE_EXTRAS:
             return False
         return True
+
+    # Sort key: (value asc, off-priority first, mental/extras first).
+    # Demote lowest-value first; at equal value prefer off-priority extras
+    # so primary archetype identity (e.g. Post Hook on Paint Bully) survives.
+    def _demote_priority(k: str, v: int) -> tuple:
+        is_priority = k in priority_keys
+        is_extra = k in _ELITE_INCLUDE_EXTRAS
+        # Lower tuple sorts earlier → demoted first
+        # value asc, then off-priority before priority, then extras before others
+        return (v, 0 if not is_priority else 1, 0 if is_extra else 1)
 
     # Cap ≥90 first, then ≥85 (descending threshold ordering).
     over_90 = sorted(
         [(k, v) for k, v in attrs.items() if _eligible(k) and v >= 90],
-        key=lambda x: x[1],
+        key=lambda kv: _demote_priority(*kv),
     )
     excess = max(0, len(over_90) - cap90)
     for k, _v in over_90[:excess]:
@@ -206,7 +367,7 @@ def enforce_total_elite_caps(player: dict, class_type: str) -> None:
 
     over_85 = sorted(
         [(k, v) for k, v in attrs.items() if _eligible(k) and v >= 85],
-        key=lambda x: x[1],
+        key=lambda kv: _demote_priority(*kv),
     )
     excess = max(0, len(over_85) - cap85)
     for k, _v in over_85[:excess]:
