@@ -80,6 +80,7 @@ def generate_draft_class(
 
     # Stage 6: Generate player profiles
     players = []
+    used_names: set = set()
     for pick_num, ((tier, archetype_name), outcome_tag) in enumerate(
         zip(assignments, outcome_tags), start=1
     ):
@@ -91,6 +92,7 @@ def generate_draft_class(
             build_name=build_name,
             outcome_tag=outcome_tag,
             class_type=class_type,
+            used_names=used_names,
         )
         players.append(player)
 

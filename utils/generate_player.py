@@ -50,6 +50,7 @@ def generate_player(
     build_name: str = "",
     outcome_tag: str = "normal",
     class_type: str = "Average",
+    used_names: "set | None" = None,
 ) -> dict:
     """
     Generate a complete 2K player profile.
@@ -123,7 +124,7 @@ def generate_player(
 
     # Build the initial player dict
     player = {
-        "name": generate_name(),
+        "name": generate_name(used_names=used_names),
         "pick_number": player_number,
         "position": primary_pos,
         "secondary_position": secondary_pos,

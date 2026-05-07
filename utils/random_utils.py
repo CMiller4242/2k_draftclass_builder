@@ -5,7 +5,7 @@ Centralizing randomness here makes it easy to seed for reproducibility.
 
 import random
 import string
-from typing import Tuple
+from typing import Tuple, Optional, Set
 
 
 def clamp(value: int, lo: int = 25, hi: int = 99) -> int:
@@ -35,54 +35,325 @@ def scale_range(rng: Tuple[int, int], modifier: int) -> Tuple[int, int]:
 
 # ---------------------------------------------------------------------------
 # Name generation
+#
+# Regional pools with weighted selection so most prospects feel like
+# contemporary U.S. names while still producing plausible international
+# draftees (Francophone West African, European/Balkan, Spanish/Latino,
+# East Asian, etc.). First and last names are drawn from the same region
+# in most cases to avoid jarring combinations, with a small chance of a
+# multicultural mix to reflect real-world variety.
 # ---------------------------------------------------------------------------
 
-FIRST_NAMES = [
-    "Jamal", "DeShawn", "Marcus", "Tyrese", "Jaylen", "Malik", "Darius",
-    "Trevon", "Isaiah", "Jordan", "Elijah", "Xavier", "Kendrick", "Quincy",
-    "Damian", "Lebron", "Carmelo", "Jalen", "Zion", "Cade", "Evan", "Trevor",
-    "Scottie", "Brandon", "Anthony", "Donovan", "Shai", "Ja", "Paolo",
-    "Victor", "Scoot", "Amen", "Ausar", "Chet", "Jabari", "Walker",
-    "Keyonte", "Gradey", "Taylor", "Jordan", "Brandin", "Jarace", "Cam",
-    "Dalen", "Dariq", "Leonard", "Kobe", "Steph", "Kevin", "Giannis",
-    "Nikola", "Luka", "Joel", "Devin", "Trae", "Zach", "Bam", "Tyrese",
-    "Miles", "Chris", "Andre", "Rajon", "Derrick", "Paul", "Jimmy", "Kawhi",
-    "Rudy", "Draymond", "Klay", "Andrew", "Brook", "Jarrett", "Myles",
-    "Daniel", "Spencer", "Gary", "Matisse", "OG", "Robert", "Pascal",
-    "Fred", "Kyle", "P.J.", "Seth", "Maxi", "Tobias", "Shake", "Tyus",
-    "Monte", "Immanuel", "Aaron", "Davion", "Jaden", "Ziaire", "Keon",
-    "Moses", "Chris", "Quentin", "Caleb", "Ryan", "Matt", "Bojan",
-    "Jonas", "Bogdan", "Nicolas", "Furkan", "Kristaps", "Lauri", "Naz",
-    "Anfernee", "Sekou", "Obi", "Dean", "Jalen", "Alperen",
+# US-general: broad contemporary first names from varied U.S. backgrounds.
+_US_FIRST = [
+    # Classic / common
+    "James", "Michael", "David", "Daniel", "Matthew", "Andrew", "Joseph",
+    "Joshua", "Christopher", "Ryan", "Tyler", "Brandon", "Jacob", "Nathan",
+    "Aaron", "Adam", "Alex", "Benjamin", "Caleb", "Cameron", "Carter",
+    "Cole", "Connor", "Cooper", "Dylan", "Ethan", "Evan", "Garrett",
+    "Grant", "Henry", "Hunter", "Ian", "Isaac", "Jack", "Jackson",
+    "Jared", "Jason", "John", "Jonathan", "Justin", "Kyle", "Logan",
+    "Lucas", "Luke", "Mason", "Nathaniel", "Nicholas", "Noah", "Owen",
+    "Patrick", "Peter", "Robert", "Samuel", "Sean", "Spencer", "Stephen",
+    "Thomas", "Trevor", "Wesley", "William", "Wyatt", "Zachary",
+    # Contemporary varied / urban U.S.
+    "Aiden", "Ayden", "Brayden", "Bryson", "Camden", "Chase", "Dominic",
+    "Drew", "Easton", "Elijah", "Emmett", "Gavin", "Grayson", "Hayden",
+    "Holden", "Jaden", "Jaxon", "Josiah", "Kaden", "Landon", "Levi",
+    "Maddox", "Maverick", "Micah", "Parker", "Preston", "Sawyer", "Silas",
+    "Tanner", "Tate", "Tristan", "Weston",
+    # African-American common
+    "Andre", "Anthony", "Antoine", "Brandon", "Bryce", "Calvin", "Cedric",
+    "Cory", "Curtis", "Damon", "Darnell", "Darrell", "Darrin", "DeAndre",
+    "Deion", "Demetrius", "Derek", "Derrick", "Devin", "Dominique",
+    "Donovan", "Dwayne", "Eric", "Ezekiel", "Frederick", "Gerald",
+    "Isaiah", "Jamal", "Jamar", "Jaquan", "Jaylen", "Jeremiah",
+    "Jermaine", "Jerome", "Julian", "Kameron", "Keion", "Kendall",
+    "Kendrick", "Khalil", "Kobe", "Kris", "Kwame", "Lamar", "Lance",
+    "Langston", "Larry", "Leon", "Maurice", "Marquis", "Marvin",
+    "Maximus", "Micah", "Miles", "Nelson", "Omar", "Orlando", "Paul",
+    "Quincy", "Quinton", "Rashad", "Raheem", "Reggie", "Rico",
+    "Roland", "Ronald", "Ronnie", "Roy", "Russell", "Shawn", "Sidney",
+    "Solomon", "Stanley", "Sterling", "Sylvester", "Terrance", "Terrell",
+    "Terrence", "Theo", "Tobias", "Tristan", "Tyrone", "Vince",
+    "Wallace", "Wendell", "Xavier",
+    # Less-common / modern
+    "Asher", "Atticus", "August", "Beau", "Bennett", "Brooks", "Cassius",
+    "Dawson", "Dexter", "Emerson", "Ezra", "Felix", "Finley", "Forrest",
+    "Graham", "Greyson", "Jasper", "Judah", "Kaiden", "Kingston",
+    "Kyrie", "Lennox", "Maddox", "Nehemiah", "Nico", "Otis", "Phoenix",
+    "Quentin", "Reid", "Roman", "Tate", "Zion",
 ]
 
-LAST_NAMES = [
-    "Johnson", "Williams", "Brown", "Jones", "Davis", "Miller", "Wilson",
-    "Taylor", "Anderson", "Thomas", "Jackson", "White", "Harris", "Martin",
-    "Thompson", "Young", "Robinson", "Walker", "Scott", "Nelson", "Hill",
-    "Allen", "Mitchell", "Carter", "Parker", "Evans", "Turner", "Torres",
-    "Collins", "Edwards", "Stewart", "Sanchez", "Morris", "Rogers", "Reed",
-    "Cook", "Morgan", "Bell", "Murphy", "Bailey", "Rivera", "Cooper",
-    "Richardson", "Cox", "Howard", "Ward", "Brooks", "Watson", "Kelly",
-    "Sanders", "Price", "Bennett", "Wood", "Barnes", "Ross", "Henderson",
-    "Coleman", "Jenkins", "Perry", "Powell", "Long", "Patterson", "Hughes",
-    "Flores", "Washington", "Butler", "Simmons", "Foster", "Gonzales",
-    "Bryant", "Alexander", "Russell", "Griffin", "Diallo", "Mbaye",
-    "Sissoko", "Camara", "Ndiaye", "Traore", "Kouyate", "Coulibaly",
-    "Okafor", "Onyeka", "Bamba", "Achiuwa", "Okoro", "Garuba",
-    "Sengun", "Bitadze", "Zubac", "Nurkic", "Jokic", "Doncic",
-    "Haliburton", "Cunningham", "Mobley", "Barnes", "Green", "Suggs",
-    "Duarte", "Davison", "Ziaire", "Wagner", "Kuminga", "Moody",
-    "Porter", "Maxey", "Tyrese", "Sharpe", "Holmgren", "Smith",
-    "Henderson", "Miller", "Banchero", "Jabari", "Keegan", "Shaedon",
-    "Bennedict", "A.J.",
+# US-general surnames: census-common American family names.
+_US_LAST = [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
+    "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Wilson",
+    "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee",
+    "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez",
+    "Lewis", "Robinson", "Walker", "Young", "Allen", "King", "Wright",
+    "Scott", "Hill", "Adams", "Baker", "Nelson", "Carter", "Mitchell",
+    "Roberts", "Turner", "Phillips", "Campbell", "Parker", "Evans",
+    "Edwards", "Collins", "Stewart", "Morris", "Murphy", "Cook", "Rogers",
+    "Morgan", "Peterson", "Cooper", "Reed", "Bailey", "Bell", "Gomez",
+    "Kelly", "Howard", "Ward", "Cox", "Diaz", "Richardson", "Wood",
+    "Watson", "Brooks", "Bennett", "Gray", "James", "Reyes", "Cruz",
+    "Hughes", "Price", "Myers", "Long", "Foster", "Sanders", "Ross",
+    "Morales", "Powell", "Sullivan", "Russell", "Ortiz", "Jenkins",
+    "Gutierrez", "Perry", "Butler", "Barnes", "Fisher", "Henderson",
+    "Coleman", "Simmons", "Patterson", "Jordan", "Reynolds", "Hamilton",
+    "Graham", "Kim", "Gonzales", "Alexander", "Ramos", "Wallace",
+    "Griffin", "West", "Cole", "Hayes", "Chavez", "Gibson", "Bryant",
+    "Ellis", "Stevens", "Murray", "Ford", "Marshall", "Owens", "McDonald",
+    "Harrison", "Ruiz", "Kennedy", "Wells", "Alvarez", "Woods",
+    "Mendoza", "Castillo", "Olson", "Webb", "Washington", "Tucker",
+    "Freeman", "Burns", "Henry", "Vasquez", "Snyder", "Simpson",
+    "Crawford", "Jimenez", "Porter", "Mason", "Shaw", "Gordon",
+    "Wagner", "Hunter", "Romero", "Hicks", "Dixon", "Hunt", "Palmer",
+    "Robertson", "Black", "Holmes", "Stone", "Meyer", "Boyd",
+    "Mills", "Warren", "Fox", "Rose", "Rice", "Moreno", "Schmidt",
+    "Patel", "Ferguson", "Nichols", "Herrera", "Medina", "Ryan",
+    "Fernandez", "Weaver", "Daniels", "Stephens", "Gardner", "Payne",
+    "Kelley", "Dunn", "Pierce", "Arnold", "Tran", "Spencer", "Peters",
+    "Hawkins", "Grant", "Hansen", "Castro", "Hoffman", "Hart",
+    "Elliott", "Cunningham", "Knight", "Bradley", "Carroll", "Hudson",
+    "Duncan", "Armstrong", "Berry", "Andrews", "Johnston", "Ray",
+    "Lane", "Riley", "Carpenter", "Perkins", "Aguilar", "Silva",
+    "Richards", "Willis", "Matthews", "Chapman", "Lawrence", "Garza",
+    "Vargas", "Watkins", "Wheeler", "Larson", "Carlson", "Harper",
+    "George", "Greene", "Burke", "Guzman", "Morrison", "Munoz",
+    "Jacobs", "Obrien", "Lawson", "Franklin", "Lynch", "Bishop",
+    "Carr", "Salazar", "Austin", "Mendez", "Holland", "Wilcox",
+    "Fleming", "Schultz", "Pearson", "Soto", "Lambert", "Cohen",
 ]
 
+# West African / Francophone (Senegal, Mali, Ivory Coast, Cameroon, etc.)
+# Common in international basketball pipelines.
+_WAFRICAN_FIRST = [
+    "Ibou", "Ibrahima", "Mamadou", "Moussa", "Modibo", "Cheick", "Cheikh",
+    "Souleymane", "Ousmane", "Amadou", "Adama", "Aliou", "Bakary",
+    "Boubacar", "Issa", "Mohamed", "Hamidou", "Abdoulaye", "Pape",
+    "Pathe", "Khalil", "Yakhouba", "Yves", "Sidy", "Moustapha",
+    "Tidiane", "Salif", "Drissa", "Birama", "Fode", "Bamba",
+    "Oumar", "Idrissa", "Lassana", "Sekou", "Tariq", "Hamady",
+    "Olivier", "Pascal", "Serge", "Christian", "Joel", "Alex",
+]
 
-def generate_name() -> str:
-    """Generate a random player name."""
-    first = random.choice(FIRST_NAMES)
-    last = random.choice(LAST_NAMES)
+_WAFRICAN_LAST = [
+    "Diallo", "Diakite", "Cisse", "Sissoko", "Camara", "Konate",
+    "Coulibaly", "Toure", "Traore", "Diabate", "Doumbia", "Keita",
+    "Niang", "Ndiaye", "Mbaye", "Faye", "Fall", "Diop", "Sow",
+    "Gueye", "Sarr", "Sy", "Sagna", "Ba", "Kone", "Ouattara",
+    "Bamba", "Kouyate", "Sidibe", "Drame", "Diawara", "Dembele",
+    "Ndong", "Mbah", "Eboue", "Tchouameni", "Anguelou",
+    "Fofana", "Soumare", "Mboup", "Kanoute", "Sylla", "Bah",
+    "Diatta", "Thiam", "Wade", "Seck", "Lo", "Ndoye",
+]
+
+# European/Balkan/Eastern (Serbia, Croatia, Slovenia, Lithuania, Greece, Turkey)
+_BALKAN_FIRST = [
+    "Nikola", "Dragan", "Stefan", "Marko", "Aleksandar", "Bogdan",
+    "Bojan", "Vlatko", "Vlado", "Dario", "Dejan", "Goran", "Ivica",
+    "Mario", "Milos", "Nemanja", "Petar", "Filip",
+    "Tomislav", "Vasilije", "Darko", "Boban", "Ognjen", "Mirko",
+    "Jusuf", "Andro", "Kristijan", "Toni", "Ante",
+    "Roko", "Ivan", "Zoran", "Branko", "Igor", "Slaven",
+    # Lithuanian / Baltic
+    "Jonas", "Domantas", "Sarunas", "Mantas", "Marius",
+    "Tadas", "Linas", "Edgaras", "Karolis", "Rokas", "Paulius",
+    "Tomas", "Mindaugas",
+    # Greek
+    "Kostas", "Vassilis", "Thanasis", "Nikos", "Dimitris",
+    "Yannis", "Panagiotis", "Stelios", "Georgios",
+    # Turkish
+    "Omer", "Mehmet", "Ercan", "Onuralp",
+    "Sertac", "Berke", "Emre", "Murat", "Hakan", "Burak",
+    # Slovenian / Latvian / Finnish
+    "Andrejs", "Janis", "Sasu", "Mikko", "Aleksi", "Petteri",
+    "Tomaz", "Klemen", "Matic", "Jaka",
+]
+
+_BALKAN_LAST = [
+    "Petrovic", "Stojanovic", "Markovic", "Nikolic", "Pavlovic",
+    "Lukic", "Jovanovic", "Mitrovic", "Maric", "Ilic", "Tomic",
+    "Vukovic", "Kovac", "Horvat", "Babic", "Novak", "Cvetkovic",
+    "Mihailovic", "Vasiljevic", "Krstic", "Andric", "Stankovic",
+    "Radulovic", "Simic", "Popovic", "Filipovic", "Knezevic",
+    # Lithuanian / Baltic
+    "Kazlauskas", "Petrauskas", "Jankauskas", "Balciunas",
+    "Stankevicius", "Grigaliunas", "Jasikevicius", "Kalnins",
+    "Berzins", "Ozols", "Ozolins",
+    # Greek
+    "Papadopoulos", "Papanikolaou", "Kalaitzakis", "Sloukas",
+    "Mantzaris", "Karagiannis", "Andreadis", "Vlachos",
+    # Turkish
+    "Yilmaz", "Demir", "Kara", "Aydin", "Sahin", "Celik",
+    "Yildiz", "Aslan", "Ozdemir", "Aksoy", "Korkmaz", "Polat",
+]
+
+# Spanish / Latino (Spain, Argentina, Brazil, DR, Puerto Rico, Mexico)
+_LATINO_FIRST = [
+    "Carlos", "Javier", "Luis", "Diego", "Eduardo", "Fernando", "Ricardo",
+    "Sebastian", "Mateo", "Santiago", "Andres", "Manuel", "Pablo",
+    "Pedro", "Alvaro", "Alejandro", "Adrian", "Ignacio", "Hugo",
+    "Marco", "Gabriel", "Rafael", "Lucas", "Joaquin", "Emilio",
+    "Cristian", "Esteban", "Gonzalo", "Nicolas", "Tomas", "Bruno",
+    "Rodrigo", "Salvador", "Vicente", "Jose", "Juan", "Miguel",
+    "Felipe", "Leonardo", "Joao", "Vinicius", "Paulo", "Gustavo",
+    "Juancho", "Willy", "Alex", "Ricky", "Sergio", "Juan Pablo",
+]
+
+_LATINO_LAST = [
+    "Garcia", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
+    "Perez", "Sanchez", "Ramirez", "Torres", "Flores", "Rivera",
+    "Gomez", "Diaz", "Reyes", "Morales", "Cruz", "Ortiz", "Gutierrez",
+    "Chavez", "Ramos", "Ruiz", "Alvarez", "Mendoza", "Vasquez",
+    "Castillo", "Jimenez", "Romero", "Herrera", "Medina", "Aguilar",
+    "Vargas", "Castro", "Soto", "Mendez", "Salazar", "Delgado",
+    "Pena", "Ibarra", "Orozco", "Cabrera", "Cortez", "Rojas",
+    "Velez", "Acosta", "Navarro", "Vega", "Molina", "Cordero",
+    "Rosales", "Nieves", "Espinoza", "Marin", "Carmona", "Trejo",
+    "Solis", "Ponce", "Lara", "Cervantes", "Saldana", "Peralta",
+    "Quintero", "Velasquez", "Arias", "Camacho", "Galvan",
+    # Brazilian / Portuguese
+    "Silva", "Santos", "Oliveira", "Souza", "Pereira", "Costa",
+    "Carvalho", "Almeida", "Ribeiro", "Barbosa", "Lima",
+]
+
+# East Asian (Chinese, Japanese, Korean) — kept focused; westernized
+# "Asian-American" prospects show up via the U.S. pool already.
+_EASIAN_FIRST = [
+    "Yuta", "Rui", "Hayato", "Ren", "Sho", "Ryo", "Riku", "Daiki",
+    "Kenta", "Naoki", "Takumi", "Hiroki", "Yuki", "Sora", "Haruto",
+    "Yusuke", "Akira", "Kaito", "Takashi", "Kenji",
+    "Ji-Hoon", "Min-Jun", "Hyun-Woo", "Seung-Hyun", "Jae-Won",
+    "Jin-Ho", "Joon-Ho", "Sung-Min", "Tae-Yong",
+    "Jianhao", "Wei", "Bo", "Hao", "Junwei", "Tianyu", "Zihao",
+]
+
+_EASIAN_LAST = [
+    "Watanabe", "Tanaka", "Yamamoto", "Suzuki", "Sato",
+    "Takahashi", "Kobayashi", "Nakamura", "Ito", "Yoshida",
+    "Saito", "Yamada", "Sasaki", "Matsumoto", "Inoue",
+    "Kim", "Park", "Choi", "Jung", "Kang", "Yoon", "Ahn",
+    "Cho", "Shin", "Jang", "Hong",
+    "Wang", "Li", "Zhang", "Chen", "Yang", "Zhao", "Huang",
+    "Wu", "Zhou", "Lin", "Ma", "Hu", "Guo", "Sun", "Xu",
+]
+
+# Francophone / Caribbean French (broad, French-speaking African and Caribbean
+# basketball pipelines). Avoids obvious current-NBA full-name clones.
+_CARIBBEAN_FIRST = [
+    "Olivier", "Pascal", "Theo", "Killian", "Nicolas", "Frank",
+    "Mathias", "Adrien", "Hugo", "Quentin", "Yves", "Romain",
+    "Lucien", "Sebastien", "Maxime", "Thibault", "Vincent",
+    "Etienne", "Antoine", "Florent", "Gaetan", "Loic",
+    "Mickael", "Renaud", "Cyril", "Jeremy", "Bruno",
+]
+
+_CARIBBEAN_LAST = [
+    "Bertrand", "Lefebvre", "Moreau", "Laurent", "Simon", "Michel",
+    "Leroy", "Roux", "Vincent", "Fontaine", "Chevalier", "Robin",
+    "Schneider", "Lemoine", "Marchand", "Dufour", "Blanchard",
+    "Gauthier", "Perrin", "Morel", "Girard", "Bonnet",
+    "Francois", "Dupont", "Boyer", "Gerard", "Caron", "Renard",
+    "Faure", "Andre", "Pichon",
+]
+
+# Pools registry: (first_pool, last_pool, region_label, default_weight)
+# Same-region first+last is the typical draw to avoid jarring combos.
+_REGIONS = [
+    ("us_general", _US_FIRST, _US_LAST, 78),
+    ("wafrican", _WAFRICAN_FIRST, _WAFRICAN_LAST, 7),
+    ("balkan_euro", _BALKAN_FIRST, _BALKAN_LAST, 7),
+    ("latino", _LATINO_FIRST, _LATINO_LAST, 4),
+    ("easian", _EASIAN_FIRST, _EASIAN_LAST, 2),
+    ("caribbean_franco", _CARIBBEAN_FIRST, _CARIBBEAN_LAST, 2),
+]
+
+# Probability of crossing first-name region with last-name region (multicultural).
+_CROSS_REGION_PROB = 0.05
+
+# Hard blocklist: full names that read as obvious current-NBA stars.
+# Generation will reroll if it hits one of these.
+_NBA_FULLNAME_BLOCKLIST = {
+    "lebron james", "stephen curry", "steph curry", "kevin durant",
+    "giannis antetokounmpo", "nikola jokic", "luka doncic", "joel embiid",
+    "jayson tatum", "jaylen brown", "jimmy butler", "kawhi leonard",
+    "paul george", "damian lillard", "devin booker", "anthony davis",
+    "ja morant", "shai gilgeous-alexander", "trae young", "zion williamson",
+    "victor wembanyama", "chet holmgren", "paolo banchero", "scoot henderson",
+    "anthony edwards", "tyrese haliburton", "tyrese maxey", "donovan mitchell",
+    "jrue holiday", "draymond green", "klay thompson", "rudy gobert",
+    "bam adebayo", "karl-anthony towns", "jamal murray", "kyrie irving",
+    "james harden", "russell westbrook", "chris paul", "lamelo ball",
+    "lonzo ball", "zach lavine", "demar derozan", "deandre ayton",
+    "evan mobley", "scottie barnes", "cade cunningham", "jalen green",
+    "jaren jackson", "desmond bane", "jalen brunson", "mikal bridges",
+    "ausar thompson", "amen thompson", "brandon miller", "jabari smith",
+    "keyonte george", "gradey dick", "dereck lively", "bilal coulibaly",
+    "kel'el ware", "alex sarr", "donovan clingan", "stephon castle",
+    "zaccharie risacher", "reed sheppard",
+}
+
+# Soft blocklist: surnames so identifiable they create star-clones too easily.
+# These get downweighted heavily (effectively excluded from US pool draws).
+_HIGH_SIGNAL_NBA_LAST = {
+    "antetokounmpo", "doncic", "jokic", "embiid", "wembanyama",
+    "haliburton", "banchero", "holmgren", "tatum",
+}
+
+
+def _pick_region() -> Tuple[list, list, str]:
+    """Pick a regional name pool by weight. Returns (first_pool, last_pool, label)."""
+    weights = [r[3] for r in _REGIONS]
+    region = random.choices(_REGIONS, weights=weights, k=1)[0]
+    return region[1], region[2], region[0]
+
+
+def _pick_one_name() -> Tuple[str, str]:
+    """Pick a (first, last) pair, mostly same-region with rare crossover."""
+    first_pool, last_pool, _label = _pick_region()
+    # Small chance to cross last name from a different region for multicultural feel.
+    if random.random() < _CROSS_REGION_PROB:
+        _, alt_last_pool, _ = _pick_region()
+        last_pool = alt_last_pool
+    first = random.choice(first_pool)
+    last = random.choice(last_pool)
+    return first, last
+
+
+def generate_name(used_names: Optional[Set[str]] = None) -> str:
+    """
+    Generate a random player name.
+
+    Args:
+        used_names: Optional set of already-used full names (lowercased) to
+                    avoid duplicates within a class. When provided, the
+                    generated name is added to it.
+
+    Returns:
+        "First Last" string.
+    """
+    for _ in range(50):
+        first, last = _pick_one_name()
+        full_lc = f"{first} {last}".lower()
+        # Block obvious NBA full-name collisions.
+        if full_lc in _NBA_FULLNAME_BLOCKLIST:
+            continue
+        # Heavily downweight high-signal NBA surnames (skip ~80% of the time).
+        if last.lower() in _HIGH_SIGNAL_NBA_LAST and random.random() < 0.8:
+            continue
+        # Class-level dedup.
+        if used_names is not None and full_lc in used_names:
+            continue
+        if used_names is not None:
+            used_names.add(full_lc)
+        return f"{first} {last}"
+    # Fallback if we somehow exhausted attempts: just return whatever we drew.
+    first, last = _pick_one_name()
+    if used_names is not None:
+        used_names.add(f"{first} {last}".lower())
     return f"{first} {last}"
 
 
