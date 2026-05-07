@@ -224,6 +224,11 @@ def _render_badges(badges: dict):
     """Render badges grouped by category with color-coded levels."""
     from data.fields import ALL_BADGES
 
+    st.caption(
+        "Generated rookies are capped at Gold badges. "
+        "Hall of Fame and Legend badges are reserved for future MyNBA/MyEras progression."
+    )
+
     for category, badge_list in ALL_BADGES.items():
         relevant = {b: badges.get(b, "None") for b in badge_list}
         non_none = {b: l for b, l in relevant.items() if l != "None"}

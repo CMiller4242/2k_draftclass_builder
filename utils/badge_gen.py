@@ -1,9 +1,11 @@
 """
 Archetype-driven badge generation and rookie badge cap enforcement.
 
-2K26 has 56 badges across 7 categories. Priority badges get elevated levels;
-non-priority badges default to None/Bronze. Rookie caps prevent unrealistic
-badge counts for a first-year player.
+Generated draft class rookies are hard-capped at Gold badges.
+Hall of Fame and Legend are reserved for MyNBA/MyEras badge progression
+and must never appear in a generated rookie profile.
+
+Valid rookie badge levels: None | Bronze | Silver | Gold
 """
 
 import random
@@ -13,46 +15,35 @@ from data.fields import ALL_BADGES
 
 # ---------------------------------------------------------------------------
 # BADGE LEVEL WEIGHTS: priority vs. non-priority, per tier
+# Gold is the maximum — Hall of Fame and Legend intentionally absent.
 # ---------------------------------------------------------------------------
 
 _PRIORITY_WEIGHTS: dict = {
-    1: {"None": 0,  "Bronze": 8,  "Silver": 22, "Gold": 35, "Hall of Fame": 28, "Legend": 7},
-    2: {"None": 5,  "Bronze": 15, "Silver": 30, "Gold": 32, "Hall of Fame": 16, "Legend": 0},
-    3: {"None": 15, "Bronze": 35, "Silver": 32, "Gold": 15, "Hall of Fame": 3,  "Legend": 0},
-    4: {"None": 30, "Bronze": 42, "Silver": 22, "Gold": 6,  "Hall of Fame": 0,  "Legend": 0},
+    1: {"None": 0,  "Bronze": 5,  "Silver": 25, "Gold": 70},
+    2: {"None": 5,  "Bronze": 15, "Silver": 35, "Gold": 45},
+    3: {"None": 18, "Bronze": 37, "Silver": 32, "Gold": 13},
+    4: {"None": 35, "Bronze": 42, "Silver": 18, "Gold": 5},
 }
 
 _NON_PRIORITY_WEIGHTS: dict = {
-    1: {"None": 35, "Bronze": 38, "Silver": 18, "Gold": 7,  "Hall of Fame": 2, "Legend": 0},
-    2: {"None": 50, "Bronze": 34, "Silver": 12, "Gold": 4,  "Hall of Fame": 0, "Legend": 0},
-    3: {"None": 65, "Bronze": 26, "Silver": 8,  "Gold": 1,  "Hall of Fame": 0, "Legend": 0},
-    4: {"None": 75, "Bronze": 20, "Silver": 5,  "Gold": 0,  "Hall of Fame": 0, "Legend": 0},
+    1: {"None": 38, "Bronze": 38, "Silver": 20, "Gold": 4},
+    2: {"None": 52, "Bronze": 35, "Silver": 12, "Gold": 1},
+    3: {"None": 66, "Bronze": 28, "Silver": 6,  "Gold": 0},
+    4: {"None": 75, "Bronze": 22, "Silver": 3,  "Gold": 0},
 }
 
-# Levels available per tier (Legend only for Tier 1)
-_AVAILABLE_LEVELS: dict = {
-    1: ["None", "Bronze", "Silver", "Gold", "Hall of Fame", "Legend"],
-    2: ["None", "Bronze", "Silver", "Gold", "Hall of Fame"],
-    3: ["None", "Bronze", "Silver", "Gold", "Hall of Fame"],
-    4: ["None", "Bronze", "Silver", "Gold"],
-}
+# All tiers: maximum level is Gold
+_AVAILABLE_LEVELS: list = ["None", "Bronze", "Silver", "Gold"]
 
 # ---------------------------------------------------------------------------
-# ROOKIE BADGE CAPS (max count per level per tier)
+# ROOKIE GOLD CAPS (max Gold badges per tier)
 # ---------------------------------------------------------------------------
 
-_ROOKIE_CAPS: dict = {
-    1: {"Legend": 2, "Hall of Fame": 4, "Gold": 8},
-    2: {"Legend": 0, "Hall of Fame": 2, "Gold": 5},
-    3: {"Legend": 0, "Hall of Fame": 0, "Gold": 2},
-    4: {"Legend": 0, "Hall of Fame": 0, "Gold": 0},
-}
-
-_DEMOTE: dict = {
-    "Legend":       "Hall of Fame",
-    "Hall of Fame": "Gold",
-    "Gold":         "Silver",
-    "Silver":       "Bronze",
+_GOLD_CAPS: dict = {
+    1: 10,
+    2: 6,
+    3: 3,
+    4: 1,
 }
 
 
@@ -67,16 +58,15 @@ def generate_badges_for_archetype(
     class_type: str = "Average",
 ) -> dict:
     """
-    Generate a badge dict for one player.
+    Generate a badge dict for one player. Gold is the maximum level.
 
     Priority badges (from archetype's badge_priorities) receive elevated
-    level distributions. Outcome tag modifiers add slight variance.
+    distributions. Outcome tag modifiers add slight variance.
     """
     priority_badges = _get_priority_badges(archetype)
-    available = _AVAILABLE_LEVELS.get(tier, _AVAILABLE_LEVELS[4])
 
-    # Outcome tag tweaks to priority weights
-    priority_w = {k: v for k, v in _PRIORITY_WEIGHTS.get(tier, _PRIORITY_WEIGHTS[4]).items()}
+    # Outcome tag tweaks to priority weights (copy to avoid mutating constant)
+    priority_w = dict(_PRIORITY_WEIGHTS.get(tier, _PRIORITY_WEIGHTS[4]))
     if outcome_tag == "guaranteed_good":
         _shift_weights_up(priority_w)
     elif outcome_tag in ("true_bust", "bust_risk"):
@@ -85,12 +75,14 @@ def generate_badges_for_archetype(
         _shift_weights_down(priority_w)
 
     badges: dict = {}
-    for category, badge_list in ALL_BADGES.items():
+    for _category, badge_list in ALL_BADGES.items():
         for badge in badge_list:
             is_priority = badge in priority_badges
-            w_table = priority_w if is_priority else _NON_PRIORITY_WEIGHTS.get(tier, _NON_PRIORITY_WEIGHTS[4])
-            levels = [l for l in available if w_table.get(l, 0) > 0]
-            weights = [w_table[l] for l in levels]
+            w_table = priority_w if is_priority else _NON_PRIORITY_WEIGHTS.get(
+                tier, _NON_PRIORITY_WEIGHTS[4]
+            )
+            levels  = [lv for lv in _AVAILABLE_LEVELS if w_table.get(lv, 0) > 0]
+            weights = [w_table[lv] for lv in levels]
             badges[badge] = random.choices(levels, weights=weights, k=1)[0]
 
     return badges
@@ -98,24 +90,40 @@ def generate_badges_for_archetype(
 
 def enforce_rookie_badge_caps(player: dict, class_type: str = "Average") -> None:
     """
-    Demote excess badges in-place so total counts stay within rookie caps.
+    Safety net applied after generation.
 
-    Processes Legend → Hall of Fame → Gold in order so cascading demotions
-    from one level don't push the next level over its cap.
+    Step 1 — Hard cap: any Hall of Fame or Legend badge is downgraded to Gold
+    if it belongs to the archetype's priority badges, or removed (→ None) if
+    it is not archetype-appropriate.
+
+    Step 2 — Gold cap: if the total Gold count still exceeds the tier limit,
+    demote the lowest-priority excess to Silver (priority badges kept first).
     """
-    badges = player["badges"]
-    tier   = player["tier"]
-    caps   = _ROOKIE_CAPS.get(tier, {})
+    badges   = player["badges"]
+    tier     = player["tier"]
 
-    for level in ("Legend", "Hall of Fame", "Gold"):
-        max_count = caps.get(level, 0)
-        at_level = [b for b, lv in badges.items() if lv == level]
-        if len(at_level) > max_count:
-            # Demote the extras (random selection — no preference for priority)
-            excess = random.sample(at_level, len(at_level) - max_count)
-            next_lv = _DEMOTE[level]
-            for b in excess:
-                badges[b] = next_lv
+    # Resolve archetype priority badges for this player
+    from data.archetypes import ARCHETYPES
+    archetype_def   = ARCHETYPES.get(player.get("archetype", ""), {})
+    priority_badges = _get_priority_badges(archetype_def)
+
+    # Step 1: Eliminate Hall of Fame and Legend — hard rule for rookies
+    for badge in list(badges):
+        if badges[badge] in ("Hall of Fame", "Legend"):
+            badges[badge] = "Gold" if badge in priority_badges else "None"
+
+    # Step 2: Enforce Gold count cap
+    gold_cap  = _GOLD_CAPS.get(tier, 0)
+    gold_list = [b for b, lv in badges.items() if lv == "Gold"]
+
+    if len(gold_list) > gold_cap:
+        excess = len(gold_list) - gold_cap
+        # Demote non-priority Gold first, then priority if still over
+        non_pri = [b for b in gold_list if b not in priority_badges]
+        pri     = [b for b in gold_list if b in priority_badges]
+        to_demote = (non_pri + pri)[:excess]
+        for b in to_demote:
+            badges[b] = "Silver"
 
 
 # ---------------------------------------------------------------------------
@@ -131,16 +139,16 @@ def _get_priority_badges(archetype: dict) -> Set[str]:
 
 
 def _shift_weights_up(w: dict) -> None:
-    """Move probability mass toward higher levels (guaranteed_good boost)."""
-    for level in ("Hall of Fame", "Gold"):
-        w[level] = int(w.get(level, 0) * 1.3)
-    for level in ("None", "Bronze"):
-        w[level] = max(0, int(w.get(level, 0) * 0.8))
+    """Shift probability mass toward Gold/Silver (guaranteed_good boost)."""
+    w["Gold"]   = int(w.get("Gold",   0) * 1.35)
+    w["Silver"] = int(w.get("Silver", 0) * 1.15)
+    for lv in ("None", "Bronze"):
+        w[lv] = max(0, int(w.get(lv, 0) * 0.8))
 
 
 def _shift_weights_down(w: dict) -> None:
-    """Move probability mass toward lower levels (bust/bust_risk reduction)."""
-    for level in ("Hall of Fame", "Gold", "Silver"):
-        w[level] = max(0, int(w.get(level, 0) * 0.6))
+    """Shift probability mass toward None/Bronze (bust/bust_risk reduction)."""
+    for lv in ("Gold", "Silver"):
+        w[lv] = max(0, int(w.get(lv, 0) * 0.55))
     w["None"]   = int(w.get("None",   0) * 1.4)
     w["Bronze"] = int(w.get("Bronze", 0) * 1.2)

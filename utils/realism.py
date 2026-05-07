@@ -339,4 +339,18 @@ def validate_class(
                 f"Wingspan {w}\" unusual vs height {h}\""
             )
 
+    # 10. Illegal rookie badge levels (HOF/Legend must never appear)
+    _ILLEGAL_LEVELS = frozenset({"Hall of Fame", "Legend"})
+    for p in players:
+        illegal = [
+            f"{badge}={level}"
+            for badge, level in p.get("badges", {}).items()
+            if level in _ILLEGAL_LEVELS
+        ]
+        if illegal:
+            warnings.append(
+                f"#{p['pick_number']} {p['name']}: "
+                f"Illegal rookie badge level(s): {', '.join(illegal)}"
+            )
+
     return warnings
