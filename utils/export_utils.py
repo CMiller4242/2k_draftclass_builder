@@ -60,6 +60,7 @@ _BASE_COLS = [
     "secondary_position",
     "height_display",
     "weight_lbs",
+    "wingspan_display",
     "archetype",
     "build_name",
     "tier",
@@ -69,6 +70,11 @@ _BASE_COLS = [
     "bust_risk",
     "development_outlook",
     "is_bust",
+    "boom_pct",
+    "average_pct",
+    "bust_pct",
+    "peak_age_start",
+    "peak_age_end",
     "scouting_summary",   # generated on export; not stored on player dict
 ]
 
@@ -213,6 +219,7 @@ def _write_profiles_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
             "Secondary Position": p.get("secondary_position") or "",
             "Height":             p["height_display"],
             "Weight (lbs)":       p["weight_lbs"],
+            "Wingspan":           p.get("wingspan_display") or "",
             "Archetype":          p["archetype"],
             "Build Name":         p.get("build_name") or "",
             "Tier":               p["tier"],
@@ -224,6 +231,11 @@ def _write_profiles_sheet(writer: pd.ExcelWriter, players: List[dict]) -> None:
             "Outcome Tag":        p.get("outcome_tag", ""),
             "Sleeper Subtype":    p.get("sleeper_subtype") or "",
             "Development Outlook": p.get("development_outlook", ""),
+            "Boom %":             p.get("boom_pct", ""),
+            "Average %":          p.get("average_pct", ""),
+            "Bust %":             p.get("bust_pct", ""),
+            "Peak Age Start":     p.get("peak_age_start", ""),
+            "Peak Age End":       p.get("peak_age_end", ""),
             "Scouting Summary":   generate_scouting_summary(p),
         })
     pd.DataFrame(rows).to_excel(writer, sheet_name="Player Profiles", index=False)

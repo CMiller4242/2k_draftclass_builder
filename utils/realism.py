@@ -303,4 +303,40 @@ def validate_class(
                     f"Tier 4 player has star outlook '{out}'"
                 )
 
+    # 7. Boom/Bust % integrity — should sum to 100
+    for p in players:
+        boom = p.get("boom_pct", 0)
+        avg  = p.get("average_pct", 0)
+        bust = p.get("bust_pct", 0)
+        if boom + avg + bust != 100:
+            warnings.append(
+                f"#{p['pick_number']} {p['name']}: "
+                f"Boom/Avg/Bust % sums to {boom + avg + bust} (expected 100)"
+            )
+
+    # 8. Peak age window sanity — start < end, plausible range
+    for p in players:
+        start = p.get("peak_age_start", 0)
+        end   = p.get("peak_age_end", 0)
+        if start >= end:
+            warnings.append(
+                f"#{p['pick_number']} {p['name']}: "
+                f"Peak age window invalid ({start}–{end})"
+            )
+        elif start < 21 or end > 40:
+            warnings.append(
+                f"#{p['pick_number']} {p['name']}: "
+                f"Peak age window out of range ({start}–{end})"
+            )
+
+    # 9. Wingspan sanity (should be within ±8 inches of height)
+    for p in players:
+        h = p.get("height_inches", 0)
+        w = p.get("wingspan_inches", 0)
+        if w and h and abs(w - h) > 8:
+            warnings.append(
+                f"#{p['pick_number']} {p['name']}: "
+                f"Wingspan {w}\" unusual vs height {h}\""
+            )
+
     return warnings

@@ -67,11 +67,11 @@ ARCHETYPES = {
             "Contest Shot": 55,
         },
         "badge_priorities": {
-            "Outside Scoring": ["Catch and Shoot", "Deadeye", "Limitless Range",
-                                 "Corner Specialist", "Rhythm Shooter", "Quick Draw"],
-            "Athleticism": ["Fast Twitch", "Speed Booster"],
-            "Playmaking": ["Slippery Off-Ball"],
-            "Personality": ["Hot Zone Hunter"],
+            "Outside Scoring": ["Deadeye", "Limitless Range", "Set Shot Specialist",
+                                 "Slippery Off-Ball", "Shifty Shooter"],
+            "Athleticism": ["Brick Wall"],
+            "Playmaking": ["Ankle Assassin", "Unpluckable"],
+            "Personality": ["Work Ethic", "Extremely Confident"],
         },
         # Archetypes that bust tend to have low IQ despite high shooting stats
         "bust_profile": {
@@ -116,11 +116,10 @@ ARCHETYPES = {
             "Pass to Open Man": 55,
         },
         "badge_priorities": {
-            "Outside Scoring": ["Pull-Up Precision", "Mismatch Expert",
-                                 "Stop and Pop", "Volume Shooter"],
-            "Playmaking": ["Ankle Assassin", "Quick First Step", "Handles for Days",
-                           "Killer Combos", "Hyperdrive"],
-            "Personality": ["Killer Instinct", "Competitor"],
+            "Outside Scoring": ["Shifty Shooter", "Deadeye", "Limitless Range",
+                                 "Set Shot Specialist"],
+            "Playmaking": ["Ankle Assassin", "Handles For Days", "Strong Handle"],
+            "Personality": ["Alpha Dog", "Extremely Confident"],
         },
         "bust_profile": {
             "Pass IQ": (-18, -12),
@@ -164,11 +163,11 @@ ARCHETYPES = {
             "Pass to Open Man": 70,
         },
         "badge_priorities": {
-            "Defending": ["Clamps", "Glove", "Challenger", "Tireless Defender",
-                          "Intimidator", "Guard Up"],
-            "Outside Scoring": ["Catch and Shoot", "Deadeye"],
-            "Athleticism": ["Physical Toughness", "Chase Down Artist"],
-            "Personality": ["Defensive Stopper", "Winner"],
+            "Defending": ["Challenger", "Glove", "On-Ball Menace",
+                          "Off-Ball Pest", "Pick Dodger", "High-Flying Denier"],
+            "Outside Scoring": ["Deadeye", "Slippery Off-Ball"],
+            "Athleticism": ["Brick Wall"],
+            "Personality": ["Enforcer", "Work Ethic"],
         },
         "bust_profile": {
             "Three Point Shot": (-15, -10),
@@ -212,12 +211,11 @@ ARCHETYPES = {
             "Pass to Open Man": 50,
         },
         "badge_priorities": {
-            "Inside Scoring": ["Contact Finisher", "Putback Artist", "Rise Up",
-                               "Slithery Finisher", "Pro Touch"],
-            "Rebounding": ["Glass Cleaner", "Crash", "Power Rebounder",
-                           "Worm", "Hustle Rebounder"],
-            "Defending": ["Rim Protector", "Intimidator", "Pogo Stick"],
-            "Athleticism": ["High Flyer", "Coiled Spring", "Fast Twitch"],
+            "Inside Scoring": ["Rise Up", "Physical Finisher", "Posterizer",
+                               "Paint Prodigy", "Aerial Wizard"],
+            "Rebounding": ["Rebound Chaser", "Boxout Beast"],
+            "Defending": ["Pogo Stick", "Paint Patroller", "High-Flying Denier"],
+            "Athleticism": ["Immovable Enforcer", "Brick Wall"],
         },
         "bust_profile": {
             "Free Throw": (-25, -15),
@@ -259,11 +257,10 @@ ARCHETYPES = {
             "Block Shot": 65,
         },
         "badge_priorities": {
-            "Playmaking": ["Pick and Roll Maestro", "Lob City Passer",
-                           "Post Playmaker", "Needle Threader", "Special Delivery"],
-            "Inside Scoring": ["Deep Hooks", "Backdown Punisher", "Dream Shake"],
-            "Rebounding": ["Glass Cleaner", "High-Low Detective"],
-            "Defending": ["Rim Protector", "Pogo Stick", "Intimidator"],
+            "Playmaking": ["Dimer", "Break Starter", "Versatile Visionary", "Bail Out"],
+            "Inside Scoring": ["Hook Specialist", "Post Powerhouse", "Post-Up Poet"],
+            "Rebounding": ["Boxout Beast", "Rebound Chaser"],
+            "Defending": ["Pogo Stick", "Paint Patroller", "Post Lockdown"],
         },
         "bust_profile": {
             "Defensive Consistency": (-18, -10),
@@ -305,11 +302,11 @@ ARCHETYPES = {
             "Attack Strong on Drive": 80,
         },
         "badge_priorities": {
-            "Inside Scoring": ["Contact Finisher", "Slithery Finisher", "Float Game",
-                               "Acrobat", "Giant Slayer", "Pro Touch"],
-            "Athleticism": ["Fast Twitch", "High Flyer", "Physical Specimen"],
-            "Playmaking": ["Quick First Step", "Downhill"],
-            "Defending": ["Challenger", "Fast Feet"],
+            "Inside Scoring": ["Physical Finisher", "Float Game", "Layup Mixmaster",
+                               "Rise Up", "Posterizer"],
+            "Athleticism": ["Brick Wall"],
+            "Playmaking": ["Ankle Assassin", "Lightning Launch"],
+            "Defending": ["Challenger"],
         },
         "bust_profile": {
             "Three Point Shot": (-20, -12),
@@ -353,12 +350,12 @@ ARCHETYPES = {
             "Pass to Open Man": 78,
         },
         "badge_priorities": {
-            "Defending": ["Clamps", "Glove", "Defensive Leader", "Menace",
-                          "Tireless Defender", "Fast Feet", "Crowd Control",
-                          "High-Low Detective"],
-            "Athleticism": ["Physical Toughness", "Chase Down Artist"],
-            "Personality": ["Defensive Stopper", "Intimidator"],
-            "Rebounding": ["Hustle Rebounder"],
+            "Defending": ["Glove", "On-Ball Menace", "Challenger", "Pick Dodger",
+                          "High-Flying Denier", "Paint Patroller",
+                          "Off-Ball Pest", "Post Lockdown"],
+            "Athleticism": ["Brick Wall"],
+            "Personality": ["Enforcer"],
+            "Rebounding": ["Rebound Chaser", "Boxout Beast"],
         },
         "bust_profile": {
             "Offensive Consistency": (-20, -15),
@@ -399,11 +396,11 @@ ARCHETYPES = {
             "Pass to Open Man": 65,
         },
         "badge_priorities": {
-            "Outside Scoring": ["Catch and Shoot", "Corner Specialist",
-                                 "Stop and Pop", "Deadeye"],
-            "Inside Scoring": ["Backdown Punisher", "Deep Hooks", "Post Fade Phenom"],
-            "Rebounding": ["Glass Cleaner", "Power Rebounder"],
-            "Defending": ["Rim Protector", "Pogo Stick"],
+            "Outside Scoring": ["Deadeye", "Set Shot Specialist",
+                                 "Post Fade Phenom", "Limitless Range"],
+            "Inside Scoring": ["Hook Specialist", "Post Powerhouse", "Post-Up Poet"],
+            "Rebounding": ["Boxout Beast", "Rebound Chaser"],
+            "Defending": ["Pogo Stick", "Paint Patroller"],
         },
         "bust_profile": {
             "Defensive Consistency": (-18, -12),
@@ -454,10 +451,10 @@ ARCHETYPES = {
         },
         "badge_priorities": {
             "Outside Scoring": ["Deadeye", "Shifty Shooter", "Set Shot Specialist",
-                                 "Pull-Up Precision", "Volume Shooter"],
-            "Inside Scoring":  ["Physical Finisher", "Contact Finisher"],
-            "Playmaking":      ["Quick First Step"],
-            "Personality":     ["Competitor", "Hot Zone Hunter"],
+                                 "Limitless Range"],
+            "Inside Scoring":  ["Physical Finisher", "Float Game", "Layup Mixmaster"],
+            "Playmaking":      ["Ankle Assassin", "Lightning Launch"],
+            "Personality":     ["Extremely Confident", "Work Ethic"],
         },
         "bust_profile": {
             "Shot IQ":               (-12, -8),
@@ -507,10 +504,9 @@ ARCHETYPES = {
         },
         "badge_priorities": {
             "Outside Scoring": ["Shifty Shooter", "Deadeye", "Limitless Range",
-                                 "Pull-Up Precision", "Volume Shooter", "Space Creator"],
-            "Playmaking":      ["Handles for Days", "Ankle Assassin", "Killer Combos",
-                                 "Quick First Step"],
-            "Personality":     ["Hot Zone Hunter", "Killer Instinct"],
+                                 "Set Shot Specialist", "Post Fade Phenom"],
+            "Playmaking":      ["Handles For Days", "Ankle Assassin", "Strong Handle"],
+            "Personality":     ["Alpha Dog", "Extremely Confident"],
         },
         "bust_profile": {
             "Pass IQ":               (-18, -12),
@@ -559,10 +555,10 @@ ARCHETYPES = {
             "Iso vs Good Defender":       72,
         },
         "badge_priorities": {
-            "Outside Scoring": ["Deadeye", "Shifty Shooter", "Pull-Up Precision",
-                                 "Set Shot Specialist", "Mismatch Expert"],
-            "Inside Scoring":  ["Post Fade Phenom", "Physical Finisher"],
-            "Personality":     ["Hot Zone Hunter", "Killer Instinct"],
+            "Outside Scoring": ["Deadeye", "Shifty Shooter", "Set Shot Specialist",
+                                 "Post Fade Phenom", "Mini Marksman"],
+            "Inside Scoring":  ["Physical Finisher", "Post-Up Poet", "Hook Specialist"],
+            "Personality":     ["Alpha Dog", "Extremely Confident"],
         },
         "bust_profile": {
             "Shot IQ":               (-12, -8),
@@ -608,9 +604,8 @@ ARCHETYPES = {
         },
         "badge_priorities": {
             "Inside Scoring":  ["Posterizer", "Rise Up", "Physical Finisher",
-                                 "Slithery Finisher", "Contact Finisher"],
-            "Athleticism":     ["Aerial Wizard", "High Flyer", "Fast Twitch",
-                                 "Coiled Spring", "Lightning Launch"],
+                                 "Aerial Wizard", "Layup Mixmaster"],
+            "Athleticism":     ["Immovable Enforcer"],
             "Defending":       ["High-Flying Denier", "Challenger"],
         },
         "bust_profile": {
@@ -655,11 +650,9 @@ ARCHETYPES = {
             "Shot Three":     12,
         },
         "badge_priorities": {
-            "Rebounding": ["Rebound Chaser", "Glass Cleaner", "Boxout Beast",
-                           "Hustle Rebounder", "Power Rebounder", "Crash",
-                           "Worm", "Putback Artist"],
-            "Defending":  ["Pogo Stick", "Rim Protector", "Intimidator"],
-            "Athleticism": ["Coiled Spring", "Jump Starter"],
+            "Rebounding": ["Rebound Chaser", "Boxout Beast"],
+            "Defending":  ["Pogo Stick", "Paint Patroller", "High-Flying Denier"],
+            "Athleticism": ["Immovable Enforcer", "Brick Wall"],
         },
         "bust_profile": {
             "Offensive Consistency": (-15, -8),
@@ -707,10 +700,9 @@ ARCHETYPES = {
         },
         "badge_priorities": {
             "Inside Scoring":  ["Post Powerhouse", "Paint Prodigy", "Rise Up",
-                                 "Physical Finisher", "Backdown Punisher",
-                                 "Dropstepper", "Bully"],
-            "Defending":       ["Brick Wall", "Intimidator", "Rim Protector"],
-            "Athleticism":     ["Freight Train", "Power Mover", "Physical Specimen"],
+                                 "Physical Finisher", "Post-Up Poet", "Hook Specialist"],
+            "Defending":       ["Paint Patroller", "Post Lockdown"],
+            "Athleticism":     ["Immovable Enforcer", "Brick Wall"],
         },
         "bust_profile": {
             "Agility":               (-18, -10),
@@ -754,11 +746,9 @@ ARCHETYPES = {
             "Block Shot":        68,
         },
         "badge_priorities": {
-            "Playmaking":  ["Break Starter", "Dimer", "Versatile Visionary",
-                            "Lob City Passer", "Special Delivery", "Needle Threader"],
-            "Rebounding":  ["Rebound Chaser", "Boxout Beast", "Glass Cleaner",
-                            "Hustle Rebounder"],
-            "Defending":   ["Rim Protector", "Pogo Stick"],
+            "Playmaking":  ["Break Starter", "Dimer", "Versatile Visionary", "Bail Out"],
+            "Rebounding":  ["Rebound Chaser", "Boxout Beast"],
+            "Defending":   ["Pogo Stick", "Paint Patroller"],
         },
         "bust_profile": {
             "Offensive Consistency": (-15, -10),
@@ -804,9 +794,8 @@ ARCHETYPES = {
         },
         "badge_priorities": {
             "Defending":  ["On-Ball Menace", "Glove", "Pick Dodger", "Challenger",
-                           "Clamps", "Fast Feet", "Crowd Control", "Tireless Defender",
-                           "Disruption"],
-            "Personality": ["Interceptor", "Defensive Stopper"],
+                           "Interceptor", "Off-Ball Pest", "Post Lockdown"],
+            "Personality": ["Enforcer"],
             "Playmaking":  ["Unpluckable"],
         },
         "bust_profile": {
@@ -850,11 +839,10 @@ ARCHETYPES = {
             "Roll vs Pop":   90,  # Always rolls
         },
         "badge_priorities": {
-            "Rebounding":  ["Rebound Chaser", "Boxout Beast", "Putback Artist",
-                            "Hustle Rebounder", "Glass Cleaner", "Sky Walker"],
+            "Rebounding":  ["Rebound Chaser", "Boxout Beast"],
             "Inside Scoring": ["Rise Up", "Posterizer", "Physical Finisher",
-                               "Contact Finisher"],
-            "Athleticism": ["Aerial Wizard", "Coiled Spring", "Fast Twitch"],
+                               "Aerial Wizard"],
+            "Athleticism": ["Immovable Enforcer"],
             "Defending":   ["Pogo Stick"],
         },
         "bust_profile": {
@@ -902,10 +890,10 @@ ARCHETYPES = {
             "Roll vs Pop":           30,  # Slight pop preference when set
         },
         "badge_priorities": {
-            "Inside Scoring":  ["Physical Finisher", "Posterizer", "Contact Finisher",
-                                 "Slithery Finisher", "Float Game"],
-            "Outside Scoring": ["Set Shot Specialist", "Deadeye", "Catch and Shoot"],
-            "Athleticism":     ["Fast Twitch", "Quick First Step"],
+            "Inside Scoring":  ["Physical Finisher", "Posterizer", "Float Game",
+                                 "Layup Mixmaster"],
+            "Outside Scoring": ["Set Shot Specialist", "Deadeye", "Limitless Range"],
+            "Athleticism":     ["Brick Wall"],
         },
         "bust_profile": {
             "Three Point Shot":      (-15, -10),

@@ -29,6 +29,12 @@ from utils.random_utils import (
     clamp, rand_in_range, jitter, scale_range, generate_name,
     weighted_choice, pick_weighted_from_dict,
 )
+from utils.vitals import (
+    generate_wingspan, normalize_rookie_attribute_strength,
+    generate_boom_avg_bust_percentages, generate_peak_age_window,
+    _wingspan_feet_str,
+)
+from utils.badge_gen import generate_badges_for_archetype, enforce_rookie_badge_caps
 
 
 def generate_player(
@@ -86,14 +92,17 @@ def generate_player(
     potential = _generate_potential(tier, is_bust, outcome_tag)
     attributes["Potential"] = potential
 
-    # Generate tendencies
-    tendencies = _generate_tendencies(archetype, tier)
+    # Generate tendencies (archetype-driven with outcome_tag variance)
+    tendencies = generate_tendencies_for_archetype(archetype, tier, outcome_tag)
 
-    # Generate badges
-    badges = _generate_badges(archetype, tier)
+    # Generate badges (archetype-driven + outcome_tag aware)
+    badges = generate_badges_for_archetype(archetype, tier, outcome_tag, "Average")
 
     # Pick projected role (tier-gated)
     projected_role = random.choice(PROJECTED_ROLES[tier])
+
+    # Physical vitals
+    wingspan_in = generate_wingspan(height_in, archetype_name)
 
     # Build the initial player dict
     player = {
@@ -104,6 +113,8 @@ def generate_player(
         "height_inches": height_in,
         "height_display": _inches_to_feetinches(height_in),
         "weight_lbs": weight_lb,
+        "wingspan_inches": wingspan_in,
+        "wingspan_display": _wingspan_feet_str(wingspan_in),
         "archetype": archetype_name,
         # build_name: a 2K Labs build alias when available (empty string otherwise)
         "build_name": build_name,
@@ -115,6 +126,7 @@ def generate_player(
         "projected_role": projected_role,
         "development_outlook": "",  # filled by assign_player_outlook below
         "bust_risk": "",            # filled by assign_player_outlook below
+        "playstyles": [],           # placeholder for future playstyle system
         "attributes": attributes,
         "tendencies": tendencies,
         "badges": badges,
@@ -122,6 +134,16 @@ def generate_player(
 
     # Assign coherent outlook labels (tier + potential + bust-gated)
     player.update(assign_player_outlook(player))
+
+    # Cap attribute inflation for rookies
+    normalize_rookie_attribute_strength(player)
+
+    # Cap badge counts to realistic rookie levels
+    enforce_rookie_badge_caps(player)
+
+    # Projection fields (depend on final attributes after normalization)
+    player.update(generate_boom_avg_bust_percentages(player))
+    player.update(generate_peak_age_window(player))
 
     return player
 
@@ -219,107 +241,40 @@ def _generate_potential(tier: int, is_bust: bool, outcome_tag: str = "normal") -
 # TENDENCY GENERATION
 # ---------------------------------------------------------------------------
 
-def _generate_tendencies(archetype: dict, tier: int) -> dict:
+def generate_tendencies_for_archetype(
+    archetype: dict,
+    tier: int,
+    outcome_tag: str = "normal",
+) -> dict:
     """
-    Build a full tendency dict. Archetype tendency_profile provides target
-    values for key tendencies; all others get neutral values with noise.
+    Build a full tendency dict driven by the archetype tendency_profile.
+
+    Archetype-defined tendencies use the profile target ± noise.
+    Outcome tag widens noise for bust players and tightens it for
+    guaranteed_good players so tendencies feel more coherent.
     """
     profile = archetype.get("tendency_profile", {})
-    tendencies = {}
+    tendencies: dict = {}
+
+    # Noise range depends on outcome tag
+    if outcome_tag in ("true_bust", "bust_risk"):
+        noise_lo, noise_hi = -15, 15    # more erratic
+    elif outcome_tag == "guaranteed_good":
+        noise_lo, noise_hi = -5, 5     # tighter alignment
+    else:
+        noise_lo, noise_hi = -10, 10   # default
 
     for tendency in ALL_TENDENCIES:
         if tendency in profile:
-            # Archetype-defined tendency: use the target with ±10 noise
             base = profile[tendency]
-            val = clamp(base + random.randint(-10, 10), lo=1, hi=99)
+            val  = clamp(base + random.randint(noise_lo, noise_hi), lo=1, hi=99)
         else:
-            # Default neutral tendency
-            val = clamp(random.randint(35, 65), lo=1, hi=99)
+            val  = clamp(random.randint(35, 65), lo=1, hi=99)
         tendencies[tendency] = val
 
     return tendencies
 
 
-# ---------------------------------------------------------------------------
-# BADGE GENERATION
-# ---------------------------------------------------------------------------
-
-def _generate_badges(archetype: dict, tier: int) -> dict:
-    """
-    Assign badge levels based on tier budget and archetype priorities.
-    Priority badges have a higher chance of receiving elevated levels.
-    """
-    budget = BADGE_BUDGET[tier]
-    priority_map = archetype.get("badge_priorities", {})
-
-    # Flatten priority badge names with their category
-    priority_badges = set()
-    for cat_badges in priority_map.values():
-        priority_badges.update(cat_badges)
-
-    badges = {}
-
-    for category, badge_list in ALL_BADGES.items():
-        for badge in badge_list:
-            level = _pick_badge_level(badge, tier, budget, priority_badges)
-            badges[badge] = level
-
-    return badges
-
-
-def _pick_badge_level(badge: str, tier: int, budget: dict,
-                      priority_badges: set) -> str:
-    """Pick a badge level for one badge, respecting tier constraints."""
-    is_priority = badge in priority_badges
-
-    # Available levels for this tier
-    available_levels = ["None", "Bronze", "Silver", "Gold", "Hall of Fame"]
-    if tier == 1:
-        available_levels.append("Legend")
-
-    # Build weight distribution
-    # Base weights favor lower levels heavily; priority badges shift upward
-    if is_priority and tier <= 2:
-        weights = {
-            "None":        5,
-            "Bronze":      15,
-            "Silver":      25,
-            "Gold":        30,
-            "Hall of Fame": 20,
-            "Legend":      5 if tier == 1 else 0,
-        }
-    elif is_priority and tier == 3:
-        weights = {
-            "None":        15,
-            "Bronze":      30,
-            "Silver":      30,
-            "Gold":        20,
-            "Hall of Fame": 5,
-            "Legend":      0,
-        }
-    elif is_priority and tier == 4:
-        weights = {
-            "None":        25,
-            "Bronze":      40,
-            "Silver":      25,
-            "Gold":        10,
-            "Hall of Fame": 0,
-            "Legend":      0,
-        }
-    else:
-        # Non-priority: mostly None/Bronze, rare Silver
-        weights = {
-            "None":        55,
-            "Bronze":      28,
-            "Silver":      12,
-            "Gold":        4,
-            "Hall of Fame": 1,
-            "Legend":      0,
-        }
-
-    levels = [l for l in available_levels if weights.get(l, 0) > 0]
-    w = [weights[l] for l in levels]
-    return random.choices(levels, weights=w, k=1)[0]
 
 
 # ---------------------------------------------------------------------------

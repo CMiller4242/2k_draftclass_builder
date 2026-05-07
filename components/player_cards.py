@@ -83,12 +83,15 @@ def render_player_detail(player: dict):
     if player.get("secondary_position"):
         pos_display += f"/{player['secondary_position']}"
 
+    wingspan = player.get("wingspan_display", "")
+    wingspan_str = f" | Wingspan: {wingspan}" if wingspan else ""
+
     # Header
     st.markdown(
         f"""
         <div style="border-left: 4px solid {color}; padding-left: 12px; margin-bottom: 16px;">
             <h2 style="color:{color}; margin:0">#{player['pick_number']} {player['name']}</h2>
-            <p style="color:#AAAAAA; margin:4px 0">{pos_display} | {player['height_display']} | {player['weight_lbs']} lbs</p>
+            <p style="color:#AAAAAA; margin:4px 0">{pos_display} | {player['height_display']} | {player['weight_lbs']} lbs{wingspan_str}</p>
             <p style="color:#CCCCCC; margin:0"><strong>Archetype:</strong> {player['archetype']} &nbsp;|&nbsp;
             <strong>Tier:</strong> <span style="color:{color}">{player['tier_label']}</span></p>
         </div>
@@ -117,6 +120,25 @@ def render_player_detail(player: dict):
         st.metric("Bust Risk", player["bust_risk"].split("—")[0].strip())
     with col4:
         st.metric("Development", player["development_outlook"])
+
+    # Projection row
+    boom = player.get("boom_pct")
+    avg  = player.get("average_pct")
+    bust = player.get("bust_pct")
+    peak_start = player.get("peak_age_start")
+    peak_end   = player.get("peak_age_end")
+
+    if boom is not None:
+        pc1, pc2, pc3, pc4 = st.columns(4)
+        with pc1:
+            st.metric("Boom %", f"{boom}%")
+        with pc2:
+            st.metric("Average %", f"{avg}%")
+        with pc3:
+            st.metric("Bust %", f"{bust}%")
+        with pc4:
+            if peak_start and peak_end:
+                st.metric("Peak Age", f"{peak_start}–{peak_end}")
 
     st.divider()
 
