@@ -95,8 +95,11 @@ def generate_player(
     # Generate tendencies (archetype-driven with outcome_tag variance)
     tendencies = generate_tendencies_for_archetype(archetype, tier, outcome_tag)
 
-    # Generate badges (archetype-driven + outcome_tag aware)
-    badges = generate_badges_for_archetype(archetype, tier, outcome_tag, "Average")
+    # Generate badges (archetype-driven + attribute-eligibility-gated)
+    badges = generate_badges_for_archetype(
+        archetype, tier, outcome_tag, "Average",
+        attributes=attributes, height_inches=height_in,
+    )
 
     # Pick projected role (tier-gated)
     projected_role = random.choice(PROJECTED_ROLES[tier])
