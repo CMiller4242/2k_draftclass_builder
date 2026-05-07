@@ -28,6 +28,7 @@ from utils.realism import (
     enforce_top_pick_diversity,
     enforce_height_distribution,
     enforce_archetype_spacing,
+    coerce_off_identity_outliers,
     validate_class,
 )
 
@@ -100,6 +101,9 @@ def generate_draft_class(
 
     # Post-sleeper: enforce archetype spacing in top 15
     enforce_archetype_spacing(players)
+
+    # Stage 8.5: Soft cleanup of off-identity tendency/badge outliers
+    coerce_off_identity_outliers(players)
 
     # Stage 9: Validate class for realism warnings
     warnings = validate_class(players, class_type, player_count, class_flavor)

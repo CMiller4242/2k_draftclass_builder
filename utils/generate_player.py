@@ -35,6 +35,9 @@ from utils.vitals import (
     _wingspan_feet_str,
 )
 from utils.badge_gen import generate_badges_for_archetype, enforce_rookie_badge_caps
+from data.archetype_identity import (
+    get_tendency_identity, IDENTITY_BANDS,
+)
 
 
 def generate_player(
@@ -93,12 +96,15 @@ def generate_player(
     attributes["Potential"] = potential
 
     # Generate tendencies (archetype-driven with outcome_tag variance)
-    tendencies = generate_tendencies_for_archetype(archetype, tier, outcome_tag)
+    tendencies = generate_tendencies_for_archetype(
+        archetype, tier, outcome_tag, archetype_name=archetype_name,
+    )
 
     # Generate badges (archetype-driven + attribute-eligibility-gated)
     badges = generate_badges_for_archetype(
         archetype, tier, outcome_tag, "Average",
         attributes=attributes, height_inches=height_in,
+        archetype_name=archetype_name,
     )
 
     # Pick projected role (tier-gated)
@@ -248,31 +254,61 @@ def generate_tendencies_for_archetype(
     archetype: dict,
     tier: int,
     outcome_tag: str = "normal",
+    archetype_name: str = "",
 ) -> dict:
     """
-    Build a full tendency dict driven by the archetype tendency_profile.
+    Build a full tendency dict driven 80–90% by archetype identity.
 
-    Archetype-defined tendencies use the profile target ± noise.
-    Outcome tag widens noise for bust players and tightens it for
-    guaranteed_good players so tendencies feel more coherent.
+    Three layers (in priority order):
+      1. Explicit tendency_profile values from the archetype dict — used as-is
+         with light noise (always wins).
+      2. Identity-tagged tendencies (core/support/neutral/suppress/hard_off)
+         from data.archetype_identity — keeps off-archetype behavior LOW so
+         shooters don't post up, bigs don't pull-up three, etc.
+      3. Anything that isn't tagged falls back to a low-neutral default.
+
+    Outcome tag tweaks the variance (busts get wider noise, guaranteed_good
+    players get tighter alignment) but does NOT undo the suppression of
+    off-archetype tendencies — a guaranteed_good Glass Cleaner is still
+    ~10 on Shot Three, never 60.
     """
     profile = archetype.get("tendency_profile", {})
     tendencies: dict = {}
 
-    # Noise range depends on outcome tag
+    # Variance bands tighten/loosen based on outcome tag.
     if outcome_tag in ("true_bust", "bust_risk"):
-        noise_lo, noise_hi = -15, 15    # more erratic
+        profile_noise = (-12, 12)
+        identity_jitter = 6
     elif outcome_tag == "guaranteed_good":
-        noise_lo, noise_hi = -5, 5     # tighter alignment
+        profile_noise = (-4, 4)
+        identity_jitter = 3
     else:
-        noise_lo, noise_hi = -10, 10   # default
+        profile_noise = (-7, 7)
+        identity_jitter = 4
+
+    # A Tier 1 player tends to lean harder into identity; Tier 4 noisier.
+    tier_lean = {1: 4, 2: 2, 3: 0, 4: -3}.get(tier, 0)
 
     for tendency in ALL_TENDENCIES:
         if tendency in profile:
             base = profile[tendency]
-            val  = clamp(base + random.randint(noise_lo, noise_hi), lo=1, hi=99)
+            val = clamp(
+                base + random.randint(*profile_noise) + tier_lean // 2,
+                lo=1, hi=99,
+            )
         else:
-            val  = clamp(random.randint(35, 65), lo=1, hi=99)
+            tag = get_tendency_identity(archetype_name, tendency)
+            lo, hi = IDENTITY_BANDS[tag]
+            base = random.randint(lo, hi)
+            jit  = random.randint(-identity_jitter, identity_jitter)
+            # Hard-off stays hard-off regardless of jitter spike.
+            extra_lean = tier_lean if tag in ("core", "support") else -tier_lean
+            val = clamp(base + jit + extra_lean // 2, lo=1, hi=99)
+            # Hard ceilings to enforce identity even after jitter:
+            if tag == "hard_off":
+                val = min(val, 18)
+            elif tag == "suppress":
+                val = min(val, 32)
         tendencies[tendency] = val
 
     return tendencies

@@ -26,7 +26,6 @@ from data.badge_requirements import (
 )
 from data.archetype_badge_pools import get_pool
 
-
 # ---------------------------------------------------------------------------
 # Budgets
 # ---------------------------------------------------------------------------
@@ -78,12 +77,14 @@ def generate_badges_for_archetype(
     class_type: str = "Average",
     attributes: Optional[dict] = None,
     height_inches: int = 78,
+    archetype_name: str = "",
 ) -> dict:
     """
     Generate a full badge dict for one player. Every gameplay and personality
     badge in ALL_BADGES is keyed; non-selected badges are 'None'.
     """
-    archetype_name = archetype.get("name") or _resolve_archetype_name(archetype)
+    if not archetype_name:
+        archetype_name = archetype.get("name") or _resolve_archetype_name(archetype)
     pool = get_pool(archetype_name)
     avoid: Set[str] = set(pool.get("avoid", []))
 

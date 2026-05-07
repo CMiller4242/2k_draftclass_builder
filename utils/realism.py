@@ -353,4 +353,149 @@ def validate_class(
                 f"Illegal rookie badge level(s): {', '.join(illegal)}"
             )
 
+    # 11. Tendency/attribute coherence — flag impossible combinations
+    warnings.extend(_check_tendency_attribute_coherence(players))
+
     return warnings
+
+
+# ---------------------------------------------------------------------------
+# TENDENCY / ATTRIBUTE COHERENCE CHECKS
+# Flag combinations that should never happen in a realistic profile.
+# ---------------------------------------------------------------------------
+
+def _check_tendency_attribute_coherence(players: list) -> List[str]:
+    """
+    Surface impossible-looking attribute/tendency/badge combinations that
+    survived generation. Conservative thresholds — only flag clear outliers.
+    """
+    warnings: List[str] = []
+    # Bigs that should have NO three-point game at all (ignore Stretch / Playmaking)
+    paint_only_bigs = frozenset({
+        "Rim Running Big", "Glass Cleaner",
+        "Paint Bully", "Putback Finisher",
+    })
+    # Pure perimeter shooters (don't apply post-up rule to wings/forwards)
+    pure_shooters = frozenset({
+        "Movement Shooter", "Shot Hunter",
+    })
+
+    for p in players:
+        attrs    = p.get("attributes", {})
+        tends    = p.get("tendencies", {})
+        badges   = p.get("badges", {})
+        arch     = p.get("archetype", "")
+        h        = p.get("height_inches", 0)
+        pick     = p.get("pick_number", 0)
+        name     = p.get("name", "")
+
+        three_pt = attrs.get("Three Point Shot", 0)
+        post_ctrl = attrs.get("Post Control", 0)
+
+        # 1. Paint-only bigs with any non-trivial pull-up three tendencies.
+        if arch in paint_only_bigs:
+            for t in ("Stepback Jumper Three", "Drive Pull Up Three",
+                      "Transition Pull-Up Three"):
+                if tends.get(t, 0) > 25:
+                    warnings.append(
+                        f"#{pick} {name} ({arch}): "
+                        f"{t}={tends[t]} (paint-only big shouldn't pull up from 3)"
+                    )
+                    break
+
+        # 2. Pure shooters posting up — only fires for Movement Shooter / Shot Hunter
+        if arch in pure_shooters and tends.get("Post Up", 0) > 35:
+            warnings.append(
+                f"#{pick} {name} ({arch}): "
+                f"Post Up={tends.get('Post Up')} on a pure shooter archetype"
+            )
+
+        # 3. Glass Cleaner / Putback Finisher / Rim Running Big should have
+        # very low Shot Three tendency by definition.
+        if arch in ("Glass Cleaner", "Putback Finisher", "Rim Running Big"):
+            if tends.get("Shot Three", 0) > 25:
+                warnings.append(
+                    f"#{pick} {name} ({arch}): "
+                    f"Shot Three={tends['Shot Three']} (expected ≤ 25)"
+                )
+
+        # 4. Limitless Range / Deadeye Gold without supporting Three Point Shot
+        for shooting_badge in ("Limitless Range", "Deadeye"):
+            if badges.get(shooting_badge) == "Gold" and three_pt < 70:
+                warnings.append(
+                    f"#{pick} {name} ({arch}): "
+                    f"{shooting_badge}=Gold but Three Point Shot={three_pt}"
+                )
+                break
+
+        # 5. Post Powerhouse / Hook Specialist Gold without supporting
+        # Post Control attribute.
+        for post_badge in ("Post Powerhouse", "Hook Specialist", "Post-Up Poet"):
+            if badges.get(post_badge) == "Gold" and post_ctrl < 65:
+                warnings.append(
+                    f"#{pick} {name} ({arch}): "
+                    f"{post_badge}=Gold but Post Control={post_ctrl}"
+                )
+                break
+
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# TENDENCY/BADGE COHERENCE CLEANUP (in-place)
+# Light corrections applied before validate_class. Doesn't replace the
+# warnings — flags any remaining outliers as before.
+# ---------------------------------------------------------------------------
+
+def coerce_off_identity_outliers(players: list) -> None:
+    """
+    Soft cleanup pass: clip tendencies/badges that obviously violate
+    archetype identity, after random generation.
+
+    The aim is not perfection — it's to prevent a Glass Cleaner with
+    Limitless Range Gold or a Rim Running Big who shoots threes.
+    """
+    big_archetypes = frozenset({
+        "Rim Running Big", "Glass Cleaner",
+        "Putback Finisher", "Paint Bully",
+    })
+    pure_shooter_archs = frozenset({
+        "Movement Shooter", "Shot Hunter",
+    })
+
+    for p in players:
+        arch   = p.get("archetype", "")
+        tends  = p.get("tendencies", {})
+        badges = p.get("badges", {})
+
+        # Rim runners / paint dwellers must not be three-point shooters.
+        if arch in big_archetypes:
+            for t in ("Shot Three", "Spot Up Shot Three", "Off Screen Shot Three",
+                      "Stepback Jumper Three", "Drive Pull Up Three",
+                      "Transition Pull-Up Three"):
+                if t in tends and tends[t] > 18:
+                    tends[t] = max(5, min(tends[t], 18))
+            for b in ("Limitless Range", "Deadeye", "Set Shot Specialist",
+                      "Slippery Off-Ball", "Shifty Shooter", "Mini Marksman"):
+                if badges.get(b) in ("Silver", "Gold"):
+                    badges[b] = "None"
+
+        # Pure shooters must not post up or post-fade.
+        if arch in pure_shooter_archs:
+            for t in ("Post Up", "Post Back Down", "Post Aggressive Back Down",
+                      "Post Hook Left", "Post Hook Right",
+                      "Post Fade Left", "Post Fade Right",
+                      "Post Drop Step", "Post Spin"):
+                if t in tends and tends[t] > 25:
+                    tends[t] = max(5, min(tends[t], 22))
+            for b in ("Post Powerhouse", "Hook Specialist", "Post-Up Poet",
+                      "Paint Prodigy"):
+                if badges.get(b) in ("Silver", "Gold"):
+                    badges[b] = "None"
+
+        # Lockdown / Defensive Connector should not iso.
+        if arch in ("Lockdown Guard", "Defensive Connector"):
+            for t in ("Iso vs Elite Defender", "Iso vs Good Defender",
+                      "Iso vs Average Defender", "Iso vs Poor Defender"):
+                if t in tends and tends[t] > 30:
+                    tends[t] = max(5, min(tends[t], 25))
