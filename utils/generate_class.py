@@ -90,6 +90,7 @@ def generate_draft_class(
             player_number=pick_num,
             build_name=build_name,
             outcome_tag=outcome_tag,
+            class_type=class_type,
         )
         players.append(player)
 
@@ -104,6 +105,11 @@ def generate_draft_class(
 
     # Stage 8.5: Soft cleanup of off-identity tendency/badge outliers
     coerce_off_identity_outliers(players)
+
+    # Final sort by pick number so display/export are always in pick order.
+    # Spacing/diversity passes above may reorder same-tier players but pick
+    # numbers stay attached, so sort by pick_number rather than re-numbering.
+    players.sort(key=lambda p: p.get("pick_number", 0))
 
     # Stage 9: Validate class for realism warnings
     warnings = validate_class(players, class_type, player_count, class_flavor)

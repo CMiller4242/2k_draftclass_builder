@@ -23,7 +23,7 @@ from data.fields import (
     POST_GAME_TENDENCIES, FREELANCE_TENDENCIES, DEFENSE_TENDENCIES,
 )
 from data.badge_data import BADGE_BUDGET
-from data.class_rules import BUST_RISK_BY_TIER, PROJECTED_ROLES
+from data.class_rules import BUST_RISK_BY_TIER, PROJECTED_ROLES, TRUE_BUST_ROLES
 from utils.outlook import assign_player_outlook
 from utils.random_utils import (
     clamp, rand_in_range, jitter, scale_range, generate_name,
@@ -31,6 +31,7 @@ from utils.random_utils import (
 )
 from utils.vitals import (
     generate_wingspan, normalize_rookie_attribute_strength,
+    enforce_attribute_specialization,
     generate_boom_avg_bust_percentages, generate_peak_age_window,
     _wingspan_feet_str,
 )
@@ -47,6 +48,7 @@ def generate_player(
     player_number: int = 0,
     build_name: str = "",
     outcome_tag: str = "normal",
+    class_type: str = "Average",
 ) -> dict:
     """
     Generate a complete 2K player profile.
@@ -92,7 +94,7 @@ def generate_player(
     attributes = _generate_attributes(archetype, tier_mod, is_bust)
 
     # Potential: ceiling attribute, influenced by outcome tag for volatility
-    potential = _generate_potential(tier, is_bust, outcome_tag)
+    potential = _generate_potential(tier, is_bust, outcome_tag, class_type)
     attributes["Potential"] = potential
 
     # Generate tendencies (archetype-driven with outcome_tag variance)
@@ -107,8 +109,13 @@ def generate_player(
         archetype_name=archetype_name,
     )
 
-    # Pick projected role (tier-gated)
-    projected_role = random.choice(PROJECTED_ROLES[tier])
+    # Pick projected role (tier-gated). true_bust draws from a separate
+    # risk-laden pool so a confirmed underperformer never reads as
+    # "Solid Starter" / "Defensive Starter" / "All-Star Caliber".
+    if outcome_tag == "true_bust":
+        projected_role = random.choice(TRUE_BUST_ROLES[tier])
+    else:
+        projected_role = random.choice(PROJECTED_ROLES[tier])
 
     # Physical vitals
     wingspan_in = generate_wingspan(height_in, archetype_name)
@@ -146,6 +153,10 @@ def generate_player(
 
     # Cap attribute inflation for rookies
     normalize_rookie_attribute_strength(player)
+
+    # Tighten off-identity attribute spread for non-elite class types so a
+    # Slashing Forward doesn't end up elite at 8 unrelated attributes.
+    enforce_attribute_specialization(player, class_type)
 
     # Cap badge counts to realistic rookie levels
     enforce_rookie_badge_caps(player)
@@ -218,13 +229,22 @@ def _default_baseline(attr: str) -> tuple:
 # POTENTIAL
 # ---------------------------------------------------------------------------
 
-def _generate_potential(tier: int, is_bust: bool, outcome_tag: str = "normal") -> int:
+def _generate_potential(
+    tier: int,
+    is_bust: bool,
+    outcome_tag: str = "normal",
+    class_type: str = "Average",
+) -> int:
     """
     Potential represents the ceiling — it's NOT current ability.
 
     Ranges overlap slightly between tiers to allow natural variance:
       Tier 1: 88–98  |  Tier 2: 80–90  |  Tier 3: 72–84  |  Tier 4: 55–75
     Outcome tag modifiers add further volatility so classes feel uneven.
+
+    Class-type aware caps tighten the upper end for non-elite classes — an
+    Average/Balanced class shouldn't put 98–99 potentials on Tier 2 or
+    upper Tier 3 picks except as an extremely rare sleeper exception.
     """
     base_ranges = {1: (88, 98), 2: (80, 90), 3: (72, 84), 4: (55, 75)}
     base = rand_in_range(base_ranges[tier])
@@ -243,7 +263,64 @@ def _generate_potential(tier: int, is_bust: bool, outcome_tag: str = "normal") -
         [0, random.randint(-4, -1), random.randint(1, 5)],
         weights=[70, 15, 15], k=1
     )[0]
-    return clamp(base + noise)
+    val = clamp(base + noise)
+
+    # Class-type aware soft caps. Generational/Strong/Top-heavy classes
+    # are allowed to break these. Average/Weak/Bust-heavy/Deep role-player
+    # tighten the ceiling per tier, with a small "rare exception" allowance.
+    val = _apply_class_potential_caps(val, tier, outcome_tag, class_type)
+    return val
+
+
+# Per-tier (typical_max, rare_cap). Anything above typical_max requires a
+# coin flip; anything above rare_cap is hard-clipped to rare_cap.
+_AVG_CLASS_TIER_CAPS = {
+    1: (94, 96),
+    2: (88, 91),
+    3: (82, 86),
+    4: (72, 78),
+}
+
+_TIGHTENED_CLASS_TYPES = frozenset({
+    "Average", "Weak", "Bust-heavy", "Deep role-player class"
+})
+
+
+def _apply_class_potential_caps(
+    val: int, tier: int, outcome_tag: str, class_type: str
+) -> int:
+    """
+    Tighten Average-class potential ceilings per tier.
+
+    Stars/superstars-leaning classes (Generational, Strong, Top-heavy) are
+    untouched. For tightened classes, values above the typical_max are kept
+    only ~25% of the time (rare exception) and then hard-clipped to rare_cap.
+    bust_risk on Tier 2 should not freely sit at 98–99 — clip to typical_max.
+    """
+    if class_type not in _TIGHTENED_CLASS_TYPES:
+        return val
+
+    typical_max, rare_cap = _AVG_CLASS_TIER_CAPS[tier]
+
+    # bust_risk in tightened classes should generally not produce 95+ paper
+    # prospects — clamp them to the typical band.
+    if outcome_tag == "bust_risk" and tier <= 2:
+        return min(val, typical_max)
+
+    # Sleeper-style exceptions only allowed for guaranteed_good / sleeper-eligible
+    # tiers. Otherwise enforce typical_max with a rare-exception coin flip.
+    if val > typical_max:
+        allow_exception = (
+            outcome_tag == "guaranteed_good"
+            or (tier in (3, 4) and random.random() < 0.25)
+            or (tier in (1, 2) and random.random() < 0.20)
+        )
+        if not allow_exception:
+            val = random.randint(max(typical_max - 4, 55), typical_max)
+        else:
+            val = min(val, rare_cap)
+
+    return val
 
 
 # ---------------------------------------------------------------------------

@@ -109,6 +109,8 @@ def players_to_csv(players: List[dict]) -> str:
     if not players:
         return ""
 
+    players = sorted(players, key=lambda p: p.get("pick_number", 0))
+
     output = io.StringIO()
     writer = csv.DictWriter(
         output, fieldnames=_ALL_FIELDNAMES, extrasaction="ignore"
@@ -183,6 +185,10 @@ def players_to_xlsx(
     """
     if not players:
         return b""
+
+    # Guard: ensure rows on every sheet are pick-ordered regardless of any
+    # in-memory reordering done upstream.
+    players = sorted(players, key=lambda p: p.get("pick_number", 0))
 
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:

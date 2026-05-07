@@ -54,6 +54,28 @@ def arch_pos_group(archetype_name: str) -> str:
     return _ARCH_GROUP.get(archetype_name, "wing")
 
 
+_POS_TO_GROUP = {
+    "PG":   "guard",
+    "SG":   "guard",
+    "SF":   "wing",
+    "PF":   "big",
+    "C":    "big",
+}
+
+
+def _player_pos_group(player: dict) -> set:
+    """
+    Return the set of position groups a player covers, considering archetype
+    plus primary and secondary positions. SG counts as guard, PF/C as big.
+    """
+    groups = {arch_pos_group(player.get("archetype", ""))}
+    for key in ("position", "secondary_position"):
+        pos = player.get(key) or ""
+        if pos in _POS_TO_GROUP:
+            groups.add(_POS_TO_GROUP[pos])
+    return groups
+
+
 # ---------------------------------------------------------------------------
 # TOP-PICK POSITIONAL DIVERSITY (operates on assignments list, pre-generation)
 # ---------------------------------------------------------------------------
@@ -132,9 +154,14 @@ def enforce_archetype_spacing(players: list, min_gap: int = 3) -> None:
         if arch_i not in recent_archs:
             continue
 
-        # Find a swap candidate further out (same tier, different archetype)
+        # Find a swap candidate further out (same tier, different archetype).
+        # Swap pick_numbers along with the dicts so list order matches pick
+        # order — exporters and displays sort by pick_number.
         for j in range(i + 1, min(top_n + min_gap, len(players))):
             if players[j]["tier"] == tier_i and players[j]["archetype"] != arch_i:
+                players[i]["pick_number"], players[j]["pick_number"] = (
+                    players[j]["pick_number"], players[i]["pick_number"],
+                )
                 players[i], players[j] = players[j], players[i]
                 break
 
@@ -219,6 +246,15 @@ _STAR_ROLES = frozenset({
     "All-Star Caliber", "Second-Option Star",
 })
 
+# Roles that should never appear on a true_bust player.
+_POSITIVE_ROLES = frozenset({
+    "Franchise Player", "Perennial All-Star", "First-Option Scorer",
+    "Defensive Anchor / All-Star", "Second-Option Star", "High-End Starter",
+    "Elite Role Player", "All-Star Caliber",
+    "Solid Starter", "Quality Rotation Player",
+    "Defensive Starter", "Offensive Specialist",
+})
+
 _STAR_OUTLOOKS = frozenset({
     "Franchise Cornerstone", "Perennial All-Star",
     "All-Star Caliber", "Future All-Star",
@@ -253,11 +289,15 @@ def validate_class(
         )
 
     # 2. Top-3 positional clustering
+    # Use both archetype group and the player's actual position (primary +
+    # secondary) so an SG with a Wing archetype (e.g. 3-Level Scorer) still
+    # counts as guard for diversity purposes.
     if class_flavor != "Big-heavy" and len(players) >= 3:
-        top3_groups = [arch_pos_group(p["archetype"]) for p in players[:3]]
-        if top3_groups.count("big") == 3:
+        top3_groups = [_player_pos_group(p) for p in players[:3]]
+        if all("big" in g and "guard" not in g and "wing" not in g for g in top3_groups):
             warnings.append("Top 3 picks are all bigs (PF/C) — add positional variety.")
-        if top3_groups.count("guard") == 0 and player_count >= 10:
+        has_guard = any("guard" in g for g in top3_groups)
+        if not has_guard and player_count >= 10:
             warnings.append("No guard in top 3 picks.")
 
     # 3. Extreme height count
@@ -268,6 +308,16 @@ def validate_class(
             f"Height distribution: {c2} players at 7'2\"+ "
             f"(recommended max for {player_count} players: {cap2})"
         )
+
+    # 3b. true_bust players must not carry positive projection roles.
+    for p in players:
+        if p.get("outcome_tag") == "true_bust":
+            role = p.get("projected_role", "")
+            if role in _POSITIVE_ROLES:
+                warnings.append(
+                    f"#{p['pick_number']} {p['name']}: "
+                    f"true_bust player has positive role '{role}'"
+                )
 
     # 4. Role / potential mismatches
     for p in players:

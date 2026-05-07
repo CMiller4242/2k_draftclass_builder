@@ -340,3 +340,33 @@ PROJECTED_ROLES = {
         "Practice Player",
     ],
 }
+
+# Roles for true_bust outcome tag. Must NEVER read like a positive projection
+# (Solid Starter, Defensive Starter, All-Star Caliber, etc.). Use risk-laden
+# or capped-upside language instead.
+TRUE_BUST_ROLES = {
+    1: [
+        "High-Variance Project",
+        "Tools-Based Risk",
+        "Developmental Gamble",
+        "Boom-or-Bust Prospect",
+    ],
+    2: [
+        "High-Variance Project",
+        "Tools-Based Risk",
+        "Developmental Gamble",
+        "Fringe Rotation Upside",
+    ],
+    3: [
+        "Fringe Rotation Upside",
+        "Replacement-Level Contributor",
+        "Developmental Project",
+        "Tools-Based Risk",
+    ],
+    4: [
+        "End-of-Bench Risk",
+        "Practice Player",
+        "Two-Way Hopeful",
+        "Replacement-Level Contributor",
+    ],
+}
