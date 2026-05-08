@@ -33,6 +33,7 @@ from utils.vitals import (
     generate_wingspan, normalize_rookie_attribute_strength,
     enforce_attribute_specialization, enforce_total_elite_caps,
     enforce_archetype_attr_separation, clamp_extreme_99s,
+    clamp_extreme_97_99_average_balanced,
     generate_boom_avg_bust_percentages, generate_peak_age_window,
     _wingspan_feet_str,
 )
@@ -50,7 +51,10 @@ def generate_player(
     build_name: str = "",
     outcome_tag: str = "normal",
     class_type: str = "Average",
+    class_flavor: str = "",
     used_names: "set | None" = None,
+    used_first_names_top10: "set | None" = None,
+    top5_regions: "list | None" = None,
 ) -> dict:
     """
     Generate a complete 2K player profile.
@@ -124,7 +128,13 @@ def generate_player(
 
     # Build the initial player dict
     player = {
-        "name": generate_name(used_names=used_names),
+        "name": generate_name(
+            used_names=used_names,
+            pick_number=player_number,
+            class_flavor=class_flavor,
+            used_first_names_top10=used_first_names_top10,
+            top5_regions=top5_regions,
+        ),
         "pick_number": player_number,
         "position": primary_pos,
         "secondary_position": secondary_pos,
@@ -172,6 +182,10 @@ def generate_player(
     # Make 99 ratings very rare in tightened classes — at most one, on a
     # primary archetype-identity attribute. Mental/consistency never 99.
     clamp_extreme_99s(player, class_type)
+
+    # For Average + Balanced specifically, make 97–99 spikes rare too. Only
+    # one primary-identity 97+ allowed; mental/consistency/support never 97+.
+    clamp_extreme_97_99_average_balanced(player, class_type, class_flavor)
 
     # Cap badge counts to realistic rookie levels
     enforce_rookie_badge_caps(player)

@@ -311,19 +311,44 @@ def _pick_region() -> Tuple[list, list, str]:
     return region[1], region[2], region[0]
 
 
-def _pick_one_name() -> Tuple[str, str]:
-    """Pick a (first, last) pair, mostly same-region with rare crossover."""
-    first_pool, last_pool, _label = _pick_region()
+def _pick_region_filtered(blocked_labels: Set[str]) -> Tuple[list, list, str]:
+    """Pick a regional pool, excluding labels in blocked_labels if possible."""
+    candidates = [r for r in _REGIONS if r[0] not in blocked_labels]
+    if not candidates:
+        return _pick_region()
+    weights = [r[3] for r in candidates]
+    region = random.choices(candidates, weights=weights, k=1)[0]
+    return region[1], region[2], region[0]
+
+
+def _pick_one_name(blocked_regions: Optional[Set[str]] = None) -> Tuple[str, str, str]:
+    """Pick a (first, last, region_label) tuple, mostly same-region with rare crossover."""
+    if blocked_regions:
+        first_pool, last_pool, label = _pick_region_filtered(blocked_regions)
+    else:
+        first_pool, last_pool, label = _pick_region()
     # Small chance to cross last name from a different region for multicultural feel.
     if random.random() < _CROSS_REGION_PROB:
         _, alt_last_pool, _ = _pick_region()
         last_pool = alt_last_pool
     first = random.choice(first_pool)
     last = random.choice(last_pool)
-    return first, last
+    return first, last, label
 
 
-def generate_name(used_names: Optional[Set[str]] = None) -> str:
+# Pick numbers (1-indexed) where extra naming constraints apply.
+_TOP10_FIRST_NAME_DEDUP_LIMIT = 10
+_TOP5_REGIONAL_SPREAD_LIMIT = 5
+_TOP5_NON_US_CLUSTER_CAP = 2  # avoid 3+ non-US/general regions in top 5
+
+
+def generate_name(
+    used_names: Optional[Set[str]] = None,
+    pick_number: int = 0,
+    class_flavor: str = "",
+    used_first_names_top10: Optional[Set[str]] = None,
+    top5_regions: Optional[list] = None,
+) -> str:
     """
     Generate a random player name.
 
@@ -331,29 +356,86 @@ def generate_name(used_names: Optional[Set[str]] = None) -> str:
         used_names: Optional set of already-used full names (lowercased) to
                     avoid duplicates within a class. When provided, the
                     generated name is added to it.
+        pick_number: 1-indexed pick number. Enables top-10 first-name dedup
+                    and (for Balanced) top-5 regional-cluster spread.
+        class_flavor: Class flavor name ("Balanced", "Guard-heavy", etc.).
+                    Top-5 regional spread is only enforced for "Balanced".
+        used_first_names_top10: Set of lowercased first names already used
+                    among picks 1..10. Updated in-place when this pick is
+                    in the top 10.
+        top5_regions: Ordered list of region labels for picks 1..5 so far.
+                    Used for Balanced flavor to avoid regional clustering.
+                    Updated in-place when this pick is in the top 5.
 
     Returns:
         "First Last" string.
     """
-    for _ in range(50):
-        first, last = _pick_one_name()
-        full_lc = f"{first} {last}".lower()
-        # Block obvious NBA full-name collisions.
-        if full_lc in _NBA_FULLNAME_BLOCKLIST:
-            continue
-        # Heavily downweight high-signal NBA surnames (skip ~80% of the time).
-        if last.lower() in _HIGH_SIGNAL_NBA_LAST and random.random() < 0.8:
-            continue
-        # Class-level dedup.
-        if used_names is not None and full_lc in used_names:
-            continue
-        if used_names is not None:
-            used_names.add(full_lc)
-        return f"{first} {last}"
+    in_top10 = 1 <= pick_number <= _TOP10_FIRST_NAME_DEDUP_LIMIT
+    in_top5  = 1 <= pick_number <= _TOP5_REGIONAL_SPREAD_LIMIT
+    enforce_top5_spread = (in_top5 and class_flavor == "Balanced"
+                           and top5_regions is not None)
+
+    # Build region blocklist for top-5 Balanced spread, if applicable.
+    # The non-US cluster cap is the dominant constraint; back-to-back
+    # avoidance is dropped when it would conflict (e.g. last pick was
+    # us_general and non-US is already at the cap).
+    def _blocked_regions() -> Set[str]:
+        blocked: Set[str] = set()
+        if not enforce_top5_spread:
+            return blocked
+        # Cluster cap first (dominant): avoid 3+ non-US/general picks in top 5.
+        non_us = sum(1 for r in (top5_regions or []) if r != "us_general")
+        cluster_active = non_us >= _TOP5_NON_US_CLUSTER_CAP
+        if cluster_active:
+            for r in _REGIONS:
+                if r[0] != "us_general":
+                    blocked.add(r[0])
+        # Back-to-back avoidance — only add when it doesn't empty the pool.
+        if top5_regions:
+            last_label = top5_regions[-1]
+            # If cluster is active, never block us_general (that's the only
+            # remaining option); otherwise it's safe to block last_label.
+            if not (cluster_active and last_label == "us_general"):
+                blocked.add(last_label)
+        return blocked
+
+    # Two-phase attempt: first with strict constraints, then relaxed.
+    for phase in (0, 1):
+        # In phase 1 we relax top-5 region blocklist (still keep dedup).
+        blocked = _blocked_regions() if phase == 0 else set()
+        for _ in range(40):
+            first, last, region_label = _pick_one_name(blocked_regions=blocked)
+            full_lc = f"{first} {last}".lower()
+            first_lc = first.lower()
+            # Block obvious NBA full-name collisions.
+            if full_lc in _NBA_FULLNAME_BLOCKLIST:
+                continue
+            # Heavily downweight high-signal NBA surnames (skip ~80% of the time).
+            if last.lower() in _HIGH_SIGNAL_NBA_LAST and random.random() < 0.8:
+                continue
+            # Class-level dedup (full name).
+            if used_names is not None and full_lc in used_names:
+                continue
+            # Top-10 first-name dedup. Always enforced when set is provided.
+            if (in_top10 and used_first_names_top10 is not None
+                    and first_lc in used_first_names_top10):
+                continue
+            # Accept this pick.
+            if used_names is not None:
+                used_names.add(full_lc)
+            if in_top10 and used_first_names_top10 is not None:
+                used_first_names_top10.add(first_lc)
+            if in_top5 and top5_regions is not None:
+                top5_regions.append(region_label)
+            return f"{first} {last}"
     # Fallback if we somehow exhausted attempts: just return whatever we drew.
-    first, last = _pick_one_name()
+    first, last, region_label = _pick_one_name()
     if used_names is not None:
         used_names.add(f"{first} {last}".lower())
+    if in_top10 and used_first_names_top10 is not None:
+        used_first_names_top10.add(first.lower())
+    if in_top5 and top5_regions is not None:
+        top5_regions.append(region_label)
     return f"{first} {last}"
 
 

@@ -268,6 +268,60 @@ def clamp_extreme_99s(player: dict, class_type: str) -> None:
         attrs[k] = random.randint(94, 96)
 
 
+def clamp_extreme_97_99_average_balanced(player: dict, class_type: str,
+                                         class_flavor: str = "") -> None:
+    """
+    For Average + Balanced specifically, make 97–99 attribute spikes rare.
+
+    Behavior:
+      - Mental/consistency/support attrs in _NEVER_99_IN_TIGHTENED are pulled
+        down whenever they hit 97+ (they should rarely if ever spike that high
+        in an Average/Balanced class).
+      - At most ONE 97+ spike is allowed across non-durability attrs, and only
+        when it sits on a primary archetype-identity attribute. The keeper can
+        stay at its drawn value (up to 99 — but the 99 cap from
+        clamp_extreme_99s still applies).
+      - All other 97+ values are clamped to 94–96.
+      - Durability is exempt (always near-max by design).
+      - Only fires on Average class with Balanced flavor; other tightened
+        classes/flavors keep the existing 99-only clamp.
+    """
+    if class_type != "Average" or class_flavor != "Balanced":
+        return
+
+    arch = player.get("archetype", "")
+    primary_identity = _ARCH_PRIMARY_IDENTITY.get(arch, set())
+    attrs = player["attributes"]
+
+    # Step 1: never-97+ attrs (mental/support/etc.) — always demote
+    for k in list(attrs.keys()):
+        if k in _NEVER_99_IN_TIGHTENED and attrs.get(k, 0) >= 97:
+            attrs[k] = random.randint(90, 94)
+
+    # Step 2: limit to one 97+ spike on a primary-identity attribute.
+    nondur_97s = [
+        (k, v) for k, v in attrs.items()
+        if k not in _SKIP_ATTRS
+        and k not in DURABILITY_ATTRIBUTES
+        and v >= 97
+    ]
+    if not nondur_97s:
+        return
+
+    # Prefer a primary-identity attribute as the single keeper. If multiple
+    # primary-identity attrs are 97+, keep the highest-valued one.
+    primary_97s = [(k, v) for k, v in nondur_97s if k in primary_identity]
+    if primary_97s:
+        keeper = max(primary_97s, key=lambda kv: kv[1])[0]
+    else:
+        keeper = None  # no identity spike — demote them all
+
+    for k, v in nondur_97s:
+        if k == keeper:
+            continue
+        attrs[k] = random.randint(94, 96)
+
+
 # ---------------------------------------------------------------------------
 # ARCHETYPE-SPECIFIC POST-GENERATION CLEANUP
 # ---------------------------------------------------------------------------

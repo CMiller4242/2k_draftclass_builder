@@ -274,7 +274,7 @@ ARCHETYPES = {
             "in transition and off ball screens. Limited shooting range but "
             "devastating in the paint."
         ),
-        "valid_positions": ["SF", "PF", "SG", "SF/PF", "SF/SG"],
+        "valid_positions": ["SF", "PF", "SF/PF", "SF/SG"],
         "height_range_inches": (78, 83),   # 6'6" to 6'11"
         "weight_range_lbs": (220, 250),
         "attribute_priorities": {
